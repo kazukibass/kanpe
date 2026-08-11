@@ -32,6 +32,7 @@
     --scale:1;
     --gothic: "Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
     --mincho: "Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","Shippori Mincho",serif;
+    --editor-font: "Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
     --mono: ui-monospace,"SF Mono","Roboto Mono","DejaVu Sans Mono",monospace;
   }
   :root[data-theme="light"]{
@@ -66,6 +67,7 @@
     margin:0; background:var(--stage); color:var(--ui-ink);
     font-family:var(--gothic);
     -webkit-text-size-adjust:100%;
+    touch-action:manipulation;
     display:flex; flex-direction:column;
     padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
   }
@@ -153,6 +155,11 @@
     white-space:nowrap; text-overflow:clip; text-align:left; padding-right:5px;
   }
   .cue-label.end{transform:translateX(-100%); text-align:right; padding-right:0}
+  .cue-label.now{z-index:4; color:var(--go); font-weight:700;
+    text-shadow:0 0 10px var(--progress)}
+  .cue-label.now::after{content:""; position:absolute; left:0; bottom:0; width:min(28px,100%);
+    height:2px; border-radius:2px; background:var(--go); box-shadow:0 0 8px var(--progress)}
+  .cue-label.end.now::after{right:0; left:auto}
   .ribbon{
     position:relative; height:30px; background:var(--panel);
     border-top:1px solid var(--line); cursor:pointer; overflow:visible; margin-inline:20px;
@@ -224,6 +231,8 @@
   body.focus .card{padding:14px 17px; border-radius:4px}
   body.focus .eyebrow{margin-bottom:9px; padding-bottom:7px; font-size:11px}
   body.focus .ondeck{padding:7px 12px}
+  .ondeck, .ondeck *{touch-action:manipulation}
+  .ondeck .odmain, .ondeck .txt{-webkit-user-select:none; user-select:none}
   body.focus .ondeck .txt{-webkit-line-clamp:1; line-clamp:1}
   body.focus .card{cursor:default}
   .card.waiting{background:var(--waiting); color:var(--muted); box-shadow:none; border:1px dashed var(--line);
@@ -269,7 +278,7 @@
   }
   #titleInput{ width:100%; font-family:var(--gothic) }
   textarea{
-    font-family:var(--mincho); font-size:16px; line-height:1.7; width:100%;
+    font-family:var(--editor-font); font-size:16px; line-height:1.7; width:100%;
     min-height:88px; padding:10px; resize:vertical;
     background:var(--stage); color:var(--ui-ink); border:1px solid var(--line); border-radius:3px;
   }
@@ -285,6 +294,14 @@
     background:var(--danger-bg); border:1px solid var(--standby); color:var(--danger-ink);
     font-size:12px; line-height:1.6; padding:9px 12px; border-radius:4px;
   }
+  .time-conflict{
+    flex:none; display:flex; align-items:center; justify-content:center; gap:10px;
+    padding:7px 12px; border-bottom:1px solid var(--standby);
+    background:var(--danger-bg); color:var(--danger-ink); font-size:12px; line-height:1.5;
+  }
+  .time-conflict .btn{flex:none; min-height:30px; padding:5px 8px; border-color:var(--standby); color:inherit}
+  .row.time-conflict-row{border-color:var(--standby)}
+  .row.time-conflict-row input[type=text]{border-color:var(--standby); color:var(--danger-ink)}
   .imp{
     border:1px solid var(--line); border-radius:5px; background:var(--panel); padding:11px;
   }
@@ -307,10 +324,12 @@
   dialog::backdrop{background:rgba(0,0,0,.55)}
   dialog h2{font-size:18px; margin:0 0 12px}
   dialog p{font-size:13px; color:var(--muted); line-height:1.8}
+  #helpDialog{max-height:calc(100dvh - 28px); overflow-y:auto}
   .prompt-dialog{width:min(760px,calc(100% - 28px))}
   .prompt-dialog textarea{height:min(56vh,540px); min-height:260px; font-family:var(--gothic); font-size:13px}
   .keys{display:grid; grid-template-columns:auto 1fr; gap:8px 14px; font-size:13px; margin:16px 0}
   kbd{font-family:var(--mono); border:1px solid var(--line); border-radius:4px; padding:3px 7px; background:var(--stage)}
+  .help-mobile{display:none}
   @media (max-width:520px){
     .clock{font-size:18px}
     .bar{min-height:52px; gap:4px; padding:4px 8px}
@@ -361,11 +380,23 @@
     .cue-label{top:6px; max-width:116px; font-size:0; line-height:24px}
     .cue-label::before{content:attr(data-cue-number); font-family:var(--mono); font-size:14px;
       font-weight:700; color:var(--soft-ink)}
+    .cue-label.now{width:32px !important; max-width:32px;
+      background:linear-gradient(90deg,var(--panel) 72%,transparent)}
+    .cue-label.end.now{width:36px !important; max-width:36px;
+      background:linear-gradient(270deg,var(--panel) 72%,transparent)}
+    .cue-label.now::before{color:var(--go)}
     .inline-save{display:inline-block; padding:4px 7px; border-color:var(--go); color:var(--go);
       background:var(--hover-bg); font-size:11px; letter-spacing:0}
     .imp textarea, .prompt-dialog textarea{font-size:16px}
+    .help-desktop{display:none}
+    .help-mobile{display:block}
+    .help-mobile p{margin:9px 0}
   }
   @media (min-width:521px){
+    .cue-label.now{width:88px !important; max-width:88px;
+      background:linear-gradient(90deg,var(--panel) 78%,transparent)}
+    .cue-label.end.now{width:116px !important; max-width:116px;
+      background:linear-gradient(270deg,var(--panel) 78%,transparent)}
     body.focus #menuBtn{display:block; visibility:hidden; pointer-events:none}
     body.focus .fullscreen-fab{display:grid; place-items:center; position:fixed; z-index:30;
       right:18px; bottom:calc(76px + env(safe-area-inset-bottom)); width:48px; height:48px;
@@ -411,7 +442,7 @@
       <button class="btn nonlive desktop-action" id="fullEditBtn" type="button" title="台本を一覧で編集">一覧</button>
       <button class="btn nonlive desktop-action" id="editBtn">編集</button>
       <button class="btn fullscreen-fab" id="fullscreenBtn" type="button" title="フルスクリーンにする" aria-label="フルスクリーンにする"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5"/></svg></button>
-      <button class="btn desktop-action" id="focusBtn" title="本番表示にする">本番</button>
+      <button class="btn desktop-action" id="focusBtn" title="発表モードにする">発表</button>
       <button class="btn ghost opt nonlive" id="menuBtn" type="button" aria-label="メニューを開く"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     </div>
   </div>
@@ -423,6 +454,11 @@
     <div class="fill" id="fill"></div><div class="playhead" id="playhead" aria-hidden="true"></div>
   </div>
 </header>
+
+<div class="time-conflict" id="timeConflict" role="alert" hidden>
+  <span id="timeConflictText"></span>
+  <button class="btn" id="timeConflictEdit" type="button">一覧で修正</button>
+</div>
 
 <main id="view">
   <div class="card" id="card" title="ダブルクリックで現在の項目を編集">
@@ -482,17 +518,27 @@
 </section>
 
 <dialog id="helpDialog">
-  <h2>使い方とキー操作</h2>
-  <p><b>表示と編集：</b>「編集」または台本のダブルクリックで、表示中の本文をその場で編集できます。「保存」かCtrl／⌘＋Enterで確定、Escで破棄します。時刻変更や並べ替えは「一覧」を使います。</p>
-  <p><b>再生操作：</b>上部プレイヤーは、冒頭・前の項目・再生／停止・次の項目・終点の順です。タイムラインや下部の前後ボタンからも移動できます。</p>
-  <p><b>終点：</b>最後の項目がタイムラインの終点です。その時刻へ到達すると自動停止します。最後まで計測する台本では、末尾に本文なしの「終了」項目を置いてください。</p>
-  <p><b>本番：</b>操作を絞った表示へ切り替えますが、フルスクリーンにはなりません。PCでは本番中に右下の専用ボタンから任意でフルスクリーンにできます。</p>
-  <div class="keys">
-    <kbd>Space</kbd><span>開始／一時停止</span>
-    <kbd>← →</kbd><span>前／次の項目</span>
-    <kbd>F</kbd><span>本番表示の開始／終了</span>
-    <kbd>Ctrl / ⌘ + Enter</kbd><span>表示中の編集を保存</span>
-    <kbd>Esc</kbd><span>編集を破棄／本番表示を終了</span>
+  <div class="help-desktop">
+    <h2>使い方とキー操作</h2>
+    <p><b>編集：</b>台本文字をダブルクリック、または「編集」を押します。「保存」か領域外のクリックで確定。時刻変更や並べ替えは「一覧」を使います。</p>
+    <p><b>移動：</b>上部は、冒頭・前・再生／停止・次・終点の順です。タイムラインや下部ボタンからも移動できます。</p>
+    <p><b>発表：</b>「発表」で操作を絞った画面になります。PCでは右下からフルスクリーンにできます。最後の項目でタイマーは自動停止します。</p>
+    <p><b>時刻の重複：</b>同時刻の項目があると発表を開始できません。一覧で警告された時刻を修正してください。</p>
+    <div class="keys">
+      <kbd>Space</kbd><span>開始／一時停止</span>
+      <kbd>← →</kbd><span>前／次の項目</span>
+      <kbd>F</kbd><span>発表モードの開始／終了</span>
+      <kbd>Ctrl / ⌘ + Enter</kbd><span>表示中の編集を保存</span>
+      <kbd>Esc</kbd><span>編集を破棄／発表モードを終了</span>
+    </div>
+  </div>
+  <div class="help-mobile">
+    <h2>スマホでの使い方</h2>
+    <p><b>表示と一覧：</b>左上の「K」で切り替えます。発表中は誤操作防止のため押せません。</p>
+    <p><b>編集：</b>台本文字をダブルタップします。「保存」か領域外のタップで確定。時刻変更は三本線の「一覧を編集」から行います。</p>
+    <p><b>移動：</b>上部中央は、冒頭・前・再生／停止・次・終点の順です。タイムラインや下部ボタンも使えます。▼で見出し番号を表示します。</p>
+    <p><b>メニュー：</b>右上の三本線に、編集・文字サイズ・配色・AI用プロンプトがあります。外側のタップで閉じます。</p>
+    <p><b>発表：</b>「発表」で操作を絞った画面になります。最後の項目で自動停止します。同時刻の項目がある場合は、一覧で修正してください。</p>
   </div>
   <form method="dialog"><button class="btn primary">閉じる</button></form>
 </dialog>
@@ -510,7 +556,7 @@
     <button class="btn ghost" id="bigger">A+　文字を大きく</button>
     <button class="btn ghost" id="themeBtn" type="button">☀　ライトモード</button>
     <button class="btn ghost" id="refitBtn" type="button">↻　表示を再計算</button>
-    <button class="btn ghost" id="helpBtn" type="button">?　使い方とキー操作</button>
+    <button class="btn ghost" id="helpBtn" type="button">?　使い方</button>
     <div class="menu-sep"></div>
     <div class="menu-label">AI用テンプレート</div>
     <button class="btn ghost" id="promptConvertBtn" type="button">📄　JSON変換プロンプト</button>
@@ -570,6 +616,9 @@
   var running = false, startedAt = 0, offset = 0;
   var wakeLock = null;
   var inlineCue = null, inlineOriginal = "";
+  var lastScriptTap = {at:0, x:0, y:0};
+  var scriptTouchStart = null;
+  var lastOnDeckTap = {at:0, x:0, y:0};
 
   var saved = load();
   if(saved){ cues = saved.cues || []; scale = saved.scale || 1; title = saved.title || ""; theme = saved.theme === "light" ? "light" : "dark"; }
@@ -717,8 +766,41 @@
   }
   function parseTime(str){ var v = toSec(str); return v==null ? 0 : v; }
   function sorted(){ return cues.slice().sort(function(a,b){ return a.at-b.at; }); }
+  // 同時刻は登録順で先にある項目だけを表示に使う。編集一覧にはすべて残す。
+  function displayCues(){
+    var seen = Object.create(null);
+    return sorted().filter(function(c){
+      var key = String(c.at);
+      if(seen[key]) return false;
+      seen[key] = true; return true;
+    });
+  }
+  function duplicateTimes(){
+    var counts = Object.create(null), out = [];
+    sorted().forEach(function(c){
+      var key = String(c.at);
+      counts[key] = (counts[key] || 0) + 1;
+      if(counts[key] === 2) out.push(c.at);
+    });
+    return out;
+  }
+  function updateConflictState(){
+    var duplicates = duplicateTimes(), blocked = duplicates.length > 0;
+    var warning = $("timeConflict");
+    warning.hidden = !blocked;
+    if(blocked){
+      $("timeConflictText").textContent = "開始時刻 " + duplicates.map(fmt).join("、") +
+        " が重複しています。登録順で先の項目だけを表示し、発表モードは開始できません。";
+    }
+    $("timeConflictEdit").hidden = !$("editView").hidden;
+    var focused = document.body.classList.contains("focus");
+    if(!focused) $("focusBtn").disabled = blocked;
+    $("focusBtn").title = focused ? "発表モードを終了" :
+      blocked ? "同時刻の項目を修正すると発表モードを開始できます" : "発表モードにする";
+    return blocked;
+  }
   function total(){
-    var s = sorted();
+    var s = displayCues();
     return s.length ? Math.max(s[s.length-1].at, 1) : 600;
   }
   function cueTitle(text, isLast){
@@ -742,7 +824,7 @@
   function start(){
     if(running) return;
     if(inlineCue) finishInlineEdit(true);
-    var s = sorted();
+    var s = displayCues();
     if(s.length && s[s.length-1].at>0 && offset>=s[s.length-1].at) offset = 0;
     startedAt = Date.now(); running = true;
     setPlayButton(true, "一時停止");
@@ -792,7 +874,7 @@
     if(!el) return uniformSize;
     var avail = availHeight();
     if(avail < 40) return uniformSize;
-    var texts = sorted().map(function(c){ return c.text || "（本文なし）"; });
+    var texts = displayCues().map(function(c){ return c.text || "（本文なし）"; });
     if(!texts.length) return uniformSize;
     var prevText = el.textContent, prevSize = el.style.fontSize;
     var lo = 13, hi = 112, best = lo;
@@ -811,12 +893,14 @@
   }
 
   function setFocus(on){
+    if(on && updateConflictState()) return;
     document.body.classList.toggle("focus", !!on);
     $("brandBtn").disabled = !!on;
     $("brandBtn").title = on ? "Kanpe" : "表示モードへ戻る";
     $("brandBtn").setAttribute("aria-label", on ? "Kanpe" : "表示モードへ戻る");
-    $("focusBtn").textContent = on ? "終了" : "本番";
-    $("focusBtn").title = on ? "本番表示を終了" : "本番表示にする";
+    $("focusBtn").textContent = on ? "終了" : "発表";
+    $("focusBtn").title = on ? "発表モードを終了" : "発表モードにする";
+    updateConflictState();
     fitKey = ""; uniformKey = ""; render();
   }
   window.addEventListener("resize", function(){ fitKey = ""; uniformKey = ""; render(); });
@@ -832,7 +916,8 @@
   document.addEventListener("fullscreenchange", fullscreenChanged);
   document.addEventListener("webkitfullscreenchange", fullscreenChanged);
   function render(){
-    var e = elapsed(), s = sorted(), T = total();
+    var e = elapsed(), s = displayCues(), T = total();
+    updateConflictState();
     var endAt = s.length ? s[s.length-1].at : null;
     if(running && endAt>0 && e>=endAt){
       offset = endAt; e = endAt; running = false;
@@ -886,8 +971,10 @@
       });
     }
     var ticks = $("ribbon").querySelectorAll(".tick");
+    var labels = $("cueLabels").querySelectorAll(".cue-label");
     for(var k=0;k<ticks.length;k++){
       ticks[k].className = "tick" + (k<idx ? " done" : k===idx ? " now" : "");
+      if(labels[k]) labels[k].classList.toggle("now", k===idx);
     }
     if(nxt && nxt.at-e <= 30 && ticks[idx+1]) ticks[idx+1].className = "tick soon";
 
@@ -969,6 +1056,9 @@
     cues = sorted();
     var box = $("rows"); box.innerHTML = "";
     $("storeWarn").hidden = canStore;
+    var duplicates = duplicateTimes(), duplicateMap = Object.create(null);
+    duplicates.forEach(function(at){ duplicateMap[String(at)] = true; });
+    updateConflictState();
     if(cues.length===0){
       var em = document.createElement("div");
       em.className = "empty";
@@ -988,7 +1078,8 @@
       return;
     }
     cues.forEach(function(c, i){
-      var row = document.createElement("div"); row.className = "row";
+      var row = document.createElement("div");
+      row.className = "row" + (duplicateMap[String(c.at)] ? " time-conflict-row" : "");
 
       var top = document.createElement("div"); top.className = "top";
       var lab = document.createElement("label");
@@ -1031,7 +1122,7 @@
   }
 
   function currentCueIndex(){
-    var s = sorted(), e = elapsed(), idx = s.length ? 0 : -1;
+    var s = displayCues(), e = elapsed(), idx = s.length ? 0 : -1;
     for(var i=0;i<s.length;i++){
       if(s[i].at <= e) idx = i;
       else break;
@@ -1041,7 +1132,7 @@
 
   function beginInlineEdit(){
     if(inlineCue || !$("editView").hidden || document.body.classList.contains("focus")) return;
-    var s = sorted(), idx = currentCueIndex(), script = $("script");
+    var s = displayCues(), idx = currentCueIndex(), script = $("script");
     if(!s.length) return setMode(true);
     if(!script) return setMode(true, idx);
     if(running) pause();
@@ -1148,6 +1239,7 @@
   });
   $("mobileFullEditBtn").addEventListener("click", function(){ closeMenu(); $("fullEditBtn").click(); });
   $("mobileEditBtn").addEventListener("click", function(){ closeMenu(); $("editBtn").click(); });
+  $("timeConflictEdit").addEventListener("click", function(){ setMode(true); });
   $("navDialog").addEventListener("click", function(ev){
     if(ev.target !== this) return;
     var r = this.getBoundingClientRect();
@@ -1176,7 +1268,7 @@
   $("helpBtn").addEventListener("click", function(){
     closeMenu();
     if($("helpDialog").showModal) $("helpDialog").showModal();
-    else alert("Space: 開始／一時停止\n← →: 前／次の項目\nF: 本番表示\nCtrl／⌘＋Enter: 編集を保存\nEsc: 編集を破棄／本番を終了");
+    else alert("Space: 開始／一時停止\n← →: 前／次の項目\nF: 発表モード\nCtrl／⌘＋Enter: 編集を保存\nEsc: 編集を破棄／発表モードを終了");
   });
   $("refitBtn").addEventListener("click", function(){
     closeMenu();
@@ -1225,18 +1317,18 @@
     releaseWake(); render();
   });
   $("prev").addEventListener("click", function(){
-    var s = sorted(), e = elapsed(), target = 0;
+    var s = displayCues(), e = elapsed(), target = 0;
     for(var i=0;i<s.length;i++){ if(s[i].at < e-1.5) target = s[i].at; }
     seek(target);
   });
   $("next").addEventListener("click", function(){
-    var s = sorted(), e = elapsed();
+    var s = displayCues(), e = elapsed();
     for(var i=0;i<s.length;i++){ if(s[i].at > e){ seek(s[i].at); return; } }
   });
   $("topPrev").addEventListener("click", function(){ $("prev").click(); });
   $("topNext").addEventListener("click", function(){ $("next").click(); });
   $("cueEndBtn").addEventListener("click", function(){
-    var s = sorted();
+    var s = displayCues();
     if(s.length) seek(s[s.length-1].at);
   });
   $("bigger").addEventListener("click", function(){ setScale(scale+0.15); closeMenu(); });
@@ -1250,9 +1342,60 @@
     else if($("editView").hidden) beginInlineEdit();
     else setMode(false);
   });
-  $("card").addEventListener("dblclick", function(){
+  $("card").addEventListener("dblclick", function(ev){
+    if(!ev.target.closest || !ev.target.closest("#script")) return;
     if(!cues.length) return;
     beginInlineEdit();
+  });
+  $("card").addEventListener("touchstart", function(ev){
+    if(!ev.target.closest || !ev.target.closest("#script") || !ev.touches[0]){
+      scriptTouchStart = null; return;
+    }
+    scriptTouchStart = {x:ev.touches[0].clientX, y:ev.touches[0].clientY};
+  }, {passive:true});
+  $("card").addEventListener("touchend", function(ev){
+    if(inlineCue || !ev.target.closest || !ev.target.closest("#script") || !cues.length) return;
+    var touch = ev.changedTouches && ev.changedTouches[0];
+    if(!touch) return;
+    if(!scriptTouchStart || Math.abs(touch.clientX-scriptTouchStart.x) >= 12 ||
+      Math.abs(touch.clientY-scriptTouchStart.y) >= 12){
+      lastScriptTap.at = 0; scriptTouchStart = null; return;
+    }
+    scriptTouchStart = null;
+    var now = Date.now();
+    var close = Math.abs(touch.clientX-lastScriptTap.x) < 24 &&
+      Math.abs(touch.clientY-lastScriptTap.y) < 24;
+    if(now-lastScriptTap.at < 380 && close){
+      ev.preventDefault();
+      lastScriptTap.at = 0;
+      beginInlineEdit();
+    }else{
+      lastScriptTap = {at:now, x:touch.clientX, y:touch.clientY};
+    }
+  }, {passive:false});
+  document.addEventListener("pointerdown", function(ev){
+    if(!inlineCue) return;
+    var script = $("script");
+    if(script && script.contains(ev.target)) return;
+    if(ev.target.closest && ev.target.closest("#editBtn, .inline-save")) return;
+    finishInlineEdit(true);
+  });
+  $("ondeck").addEventListener("touchend", function(ev){
+    if(!$("editView").hidden || !ev.target.closest || !ev.target.closest(".odmain")) return;
+    var touch = ev.changedTouches && ev.changedTouches[0];
+    if(!touch) return;
+    var now = Date.now();
+    var close = Math.abs(touch.clientX-lastOnDeckTap.x) < 28 &&
+      Math.abs(touch.clientY-lastOnDeckTap.y) < 28;
+    if(now-lastOnDeckTap.at < 400 && close){
+      ev.preventDefault();
+      lastOnDeckTap.at = 0;
+    }else{
+      lastOnDeckTap = {at:now, x:touch.clientX, y:touch.clientY};
+    }
+  }, {passive:false});
+  $("ondeck").addEventListener("dblclick", function(ev){
+    if($("editView").hidden && ev.target.closest && ev.target.closest(".odmain")) ev.preventDefault();
   });
   $("ribbon").addEventListener("click", function(ev){
     if(document.body.classList.contains("focus")) return;
@@ -1376,8 +1519,8 @@
     var t = ev.target.tagName;
     if(t==="INPUT" || t==="TEXTAREA" || t==="BUTTON" || ev.target.isContentEditable) return;
     if(ev.code==="Space"){ ev.preventDefault(); running ? pause() : start(); }
-    else if(ev.key==="ArrowRight"){ $("next").click(); }
-    else if(ev.key==="ArrowLeft"){ $("prev").click(); }
+    else if(ev.key==="ArrowRight"){ ev.preventDefault(); $("next").click(); }
+    else if(ev.key==="ArrowLeft"){ ev.preventDefault(); $("prev").click(); }
     else if(ev.key==="f" || ev.key==="F"){ $("focusBtn").click(); }
     else if(ev.key==="Escape" && document.body.classList.contains("focus")){ setFocus(false); }
   });
