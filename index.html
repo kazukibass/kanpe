@@ -6,24 +6,64 @@
 <title>カンペ — 時間で切り替わる台本表示</title>
 <style>
   :root{
+    color-scheme:dark;
     --stage:#101319;
     --panel:#181C24;
     --line:#2A303C;
     --paper:#F2EEE4;
     --paper-ink:#191C22;
+    --ui-ink:#F2EEE4;
     --muted:#8992A4;
+    --soft-ink:#B9C0CE;
+    --button-hover:#3C4557;
+    --tick:#4A5468;
+    --tick-done:#36B97F;
+    --progress:rgba(62,207,142,.30);
+    --hover-bg:rgba(62,207,142,.08);
+    --card-shadow:0 14px 34px rgba(0,0,0,.45);
+    --waiting:#1C2029;
+    --paper-muted:#6A6F7B;
+    --paper-line:rgba(25,28,34,.16);
+    --danger-bg:#2A1D1B;
+    --danger-ink:#F0C6BF;
     --go:#3ECF8E;
+    --go-strong:#24B879;
     --standby:#E2483D;
     --scale:1;
     --gothic: "Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
     --mincho: "Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","Shippori Mincho",serif;
     --mono: ui-monospace,"SF Mono","Roboto Mono","DejaVu Sans Mono",monospace;
   }
+  :root[data-theme="light"]{
+    color-scheme:light;
+    --stage:#F2F5F7;
+    --panel:#FFFFFF;
+    --line:#D5DBE3;
+    --paper:#FFFDF7;
+    --paper-ink:#20242B;
+    --ui-ink:#20242B;
+    --muted:#687385;
+    --soft-ink:#566274;
+    --button-hover:#AEB8C6;
+    --tick:#AAB3C0;
+    --tick-done:#168A5D;
+    --progress:rgba(22,138,93,.22);
+    --hover-bg:rgba(22,138,93,.07);
+    --card-shadow:0 14px 34px rgba(35,48,66,.13);
+    --waiting:#F7F9FB;
+    --paper-muted:#68707B;
+    --paper-line:rgba(32,36,43,.14);
+    --danger-bg:#FFF3F0;
+    --danger-ink:#8B352E;
+    --go:#168A5D;
+    --go-strong:#08764B;
+    --standby:#C94036;
+  }
   *{box-sizing:border-box}
   [hidden]{display:none !important}
   html,body{height:100%}
   body{
-    margin:0; background:var(--stage); color:var(--paper);
+    margin:0; background:var(--stage); color:var(--ui-ink);
     font-family:var(--gothic);
     -webkit-text-size-adjust:100%;
     display:flex; flex-direction:column;
@@ -39,44 +79,102 @@
     flex:none; border-bottom:1px solid var(--line); background:var(--panel);
   }
   .bar{
-    display:flex; align-items:center; gap:12px;
-    padding:10px 14px;
+    position:relative; display:flex; align-items:center; gap:12px;
+    min-height:64px; padding:8px 14px;
   }
+  .brand{justify-self:start; min-height:42px; padding:3px 5px; border:0; background:none; color:var(--ui-ink);
+    font-family:"Avenir Next","Segoe Script","Bradley Hand",cursive; font-size:30px;
+    font-style:italic; font-weight:800; letter-spacing:-.04em}
+  .brand:hover{color:var(--go)}
+  .brand-short{display:none}
   .clock{
     font-family:var(--mono); font-size:30px; font-weight:600;
     letter-spacing:.02em; font-variant-numeric:tabular-nums;
     line-height:1;
   }
   .clock.running{color:var(--go)}
+  .clock-group{display:flex; align-items:center; gap:8px}
+  .save-state{font-size:11px; color:var(--muted); white-space:nowrap}
+  .save-state.ok{color:var(--go)}
+  .player-center{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); white-space:nowrap}
+  .player-center .clock-group{position:absolute; top:50%; right:calc(100% + 10px); transform:translateY(-50%)}
+  .transport{display:flex; align-items:center; gap:5px; padding:3px 6px; border:1px solid var(--line);
+    border-radius:24px; background:var(--stage)}
+  .transport .btn{display:grid; place-items:center; width:36px; height:36px; padding:0; border:0;
+    border-radius:50%; font-family:var(--mono); font-size:15px; color:var(--soft-ink)}
+  .transport .play{width:42px; height:42px; background:var(--go); color:#0B1F17;
+    font-family:var(--gothic); font-size:18px; box-shadow:0 0 13px var(--progress)}
+  .transport .play:hover{background:var(--go)}
+  .transport svg{display:block; width:18px; height:18px; fill:currentColor}
+  .transport .play svg{width:22px; height:22px}
   .ctrls{display:flex; gap:6px; margin-left:auto; flex-wrap:wrap; justify-content:flex-end}
+  .ctrls > .btn{min-height:42px}
   .btn{
-    background:transparent; color:var(--paper); border:1px solid var(--line);
+    background:transparent; color:var(--ui-ink); border:1px solid var(--line);
     border-radius:3px; padding:7px 11px; font-size:13px; line-height:1;
   }
-  .btn:hover{border-color:#3C4557}
+  .btn:disabled{opacity:.35; cursor:default}
   .btn.primary{background:var(--go); border-color:var(--go); color:#0B1F17; font-weight:700}
   .btn.ghost{color:var(--muted); border-color:transparent; padding:7px 8px}
-  .btn.ghost:hover{color:var(--paper)}
+  .btn.ghost:hover{color:var(--ui-ink)}
+  @media (hover:hover){
+    button.btn:hover, summary.btn:hover{
+      border-color:var(--go); background:var(--hover-bg);
+      box-shadow:0 0 0 1px var(--progress),0 0 13px var(--progress);
+    }
+    button.btn.primary:hover{background:var(--go)}
+    button.btn:disabled:hover{border-color:var(--line); background:transparent; box-shadow:none}
+  }
+  #menuBtn{min-width:38px; text-align:center}
+  #focusBtn{order:3}
+  #menuBtn{order:4}
+  .fullscreen-fab{display:none}
+  .nav-dialog{width:min(400px,calc(100% - 28px))}
+  .nav-dialog:focus{outline:none}
+  .menu{width:100%; padding:2px; max-height:min(65vh,520px); overflow-y:auto}
+  .menu .btn{display:block; width:100%; min-height:40px; overflow:hidden; text-align:left;
+    white-space:nowrap; text-overflow:ellipsis; border:0}
+  .menu-sep{height:1px; margin:5px 7px; background:var(--line)}
+  .menu-label{padding:5px 8px 2px; color:var(--muted); font-size:10px; letter-spacing:.06em}
+  .mobile-nav-actions{display:none}
 
   /* ---------- タイムライン ---------- */
+  .cue-label-area{position:relative}
+  .cue-label-toggle{display:none}
+  .cue-labels{
+    position:relative; height:24px; overflow:hidden; background:var(--panel);
+    border-top:1px solid var(--line); pointer-events:none; margin-inline:20px;
+  }
+  .cue-label{
+    position:absolute; top:4px; width:88px; max-width:88px;
+    overflow:hidden; color:var(--soft-ink); font-size:10px; line-height:16px;
+    white-space:nowrap; text-overflow:clip; text-align:left; padding-right:5px;
+  }
+  .cue-label.end{transform:translateX(-100%); text-align:right; padding-right:0}
   .ribbon{
     position:relative; height:30px; background:var(--panel);
-    border-top:1px solid var(--line); cursor:pointer; overflow:hidden;
+    border-top:1px solid var(--line); cursor:pointer; overflow:visible; margin-inline:20px;
   }
   .ribbon .fill{
     position:absolute; inset:0 auto 0 0; width:0;
-    background:rgba(62,207,142,.10); border-right:1px solid var(--go);
+    background:var(--progress); border-right:1px solid var(--go);
+  }
+  .playhead{
+    position:absolute; z-index:3; top:8px; left:0; width:12px; height:12px;
+    margin-left:-6px; border:2px solid var(--panel); border-radius:50%;
+    background:var(--go); box-shadow:0 0 0 1px var(--go),0 0 8px rgba(62,207,142,.55);
+    pointer-events:none;
   }
   .tick{
-    position:absolute; top:0; bottom:0; width:20px; margin-left:-10px;
+    position:absolute; z-index:2; top:0; bottom:0; width:44px; margin-left:-22px;
     display:flex; align-items:center; justify-content:center;
     background:none; border:0; padding:0;
   }
   .tick i{
-    display:block; width:2px; height:9px; background:#4A5468; border-radius:1px;
+    display:block; width:2px; height:9px; background:var(--tick); border-radius:1px;
     transition:height .2s, background .2s;
   }
-  .tick.done i{background:#2E6B52}
+  .tick.done i{background:var(--tick-done); box-shadow:0 0 5px var(--progress)}
   .tick.now i{background:var(--go); height:17px; box-shadow:0 0 8px rgba(62,207,142,.7)}
   .tick.soon i{background:var(--standby); height:14px; animation:blink 1s steps(2,end) infinite}
   @keyframes blink{50%{opacity:.25}}
@@ -86,13 +184,13 @@
   .card{
     flex:1; min-height:0; background:var(--paper); color:var(--paper-ink);
     border-radius:5px; padding:22px 24px; overflow:hidden;
-    display:flex; flex-direction:column; cursor:pointer;
-    box-shadow:0 14px 34px rgba(0,0,0,.45);
+    display:flex; flex-direction:column; cursor:default;
+    box-shadow:var(--card-shadow);
   }
   .eyebrow{
     flex:none; display:flex; align-items:baseline; gap:10px; margin-bottom:14px;
-    padding-bottom:10px; border-bottom:1px solid rgba(25,28,34,.16);
-    font-size:12px; color:#6A6F7B; letter-spacing:.08em;
+    padding-bottom:10px; border-bottom:1px solid var(--paper-line);
+    font-size:12px; color:var(--paper-muted); letter-spacing:.08em;
   }
   .eyebrow .at{font-family:var(--mono); font-size:14px; color:var(--paper-ink); font-weight:600}
   .eyebrow .elapsed{margin-left:auto; font-family:var(--mono)}
@@ -102,27 +200,39 @@
     line-height:1.5; white-space:pre-wrap; word-break:break-word;
     font-feature-settings:"palt";
   }
+  .card.editing{cursor:text}
+  .card.editing .elapsed{display:none}
+  .script[contenteditable="true"]{
+    flex:1; overflow-y:auto; min-height:0; padding:10px 12px;
+    border:1px solid var(--go); border-radius:4px; background:rgba(62,207,142,.05);
+    outline:none; caret-color:var(--go);
+  }
+  .editing-mark{margin-left:auto; color:var(--go); font-weight:700; letter-spacing:.04em}
+  .inline-save{display:none}
 
   /* 集中モード：開始したら操作系を畳んで台本を最大化 */
   body.focus .opt{display:none}
-  body.focus .bar{padding:6px 12px}
-  body.focus .clock{font-size:21px}
+  body.focus .nonlive{display:none}
+  body.focus .cue-labels{display:none !important}
+  body.focus .bar{padding:8px 14px}
   body.focus .ribbon{height:7px}
+  body.focus .playhead{top:0; width:7px; height:7px; margin-left:-3px; border-width:1px}
   body.focus main{padding:7px; gap:6px}
   body.focus .card{padding:14px 17px; border-radius:4px}
   body.focus .eyebrow{margin-bottom:9px; padding-bottom:7px; font-size:11px}
   body.focus .ondeck{padding:7px 12px}
   body.focus .ondeck .txt{-webkit-line-clamp:1}
-  .card.waiting{background:#1C2029; color:var(--muted); box-shadow:none; border:1px dashed var(--line);
+  body.focus .card{cursor:default}
+  .card.waiting{background:var(--waiting); color:var(--muted); box-shadow:none; border:1px dashed var(--line);
     align-items:center; justify-content:center; text-align:center; font-size:15px; line-height:1.9}
-  .card.waiting .big{font-family:var(--mono); font-size:34px; color:var(--paper); display:block; margin-bottom:8px}
+  .card.waiting .big{font-family:var(--mono); font-size:34px; color:var(--ui-ink); display:block; margin-bottom:8px}
 
   .ondeck{
     flex:none; border:1px solid var(--line); border-radius:5px; background:var(--panel);
     padding:7px 8px; display:flex; gap:8px; align-items:center;
   }
   .ondeck .nav{
-    flex:none; font-size:13px; line-height:1; padding:12px 13px; color:var(--paper);
+    flex:none; min-height:44px; font-size:13px; line-height:1; padding:12px 13px; color:var(--ui-ink);
     white-space:nowrap;
   }
   .ondeck .nav[disabled]{opacity:.3; cursor:default}
@@ -131,11 +241,11 @@
     font-size:11px; color:var(--muted); letter-spacing:.1em; flex:none;
   }
   .ondeck .txt{
-    font-size:14px; color:#B9C0CE; line-height:1.4; flex:1; min-width:0;
+    font-size:14px; color:var(--soft-ink); line-height:1.4; flex:1; min-width:0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .ondeck .cd{
-    font-family:var(--mono); font-size:19px; font-weight:600; flex:none; color:var(--paper);
+    font-family:var(--mono); font-size:19px; font-weight:600; flex:none; color:var(--ui-ink);
     font-variant-numeric:tabular-nums;
   }
   .ondeck.soon{border-color:var(--standby)}
@@ -152,27 +262,31 @@
   .row .top label{font-size:11px; color:var(--muted); letter-spacing:.06em}
   input[type=text]{
     font-family:var(--mono); font-size:16px; width:6.5em; padding:7px 9px;
-    background:var(--stage); color:var(--paper); border:1px solid var(--line); border-radius:3px;
+    background:var(--stage); color:var(--ui-ink); border:1px solid var(--line); border-radius:3px;
   }
+  #titleInput{ width:100%; font-family:var(--gothic) }
   textarea{
     font-family:var(--mincho); font-size:16px; line-height:1.7; width:100%;
     min-height:88px; padding:10px; resize:vertical;
-    background:var(--stage); color:var(--paper); border:1px solid var(--line); border-radius:3px;
+    background:var(--stage); color:var(--ui-ink); border:1px solid var(--line); border-radius:3px;
   }
   .row .top .sp{margin-left:auto}
+  .cue-preview{display:flex; align-items:center; gap:7px; min-width:0; font-size:11px; color:var(--muted)}
+  .cue-preview .sample{max-width:18em; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+    color:var(--soft-ink); border-left:2px solid var(--go); padding:3px 7px; background:var(--stage)}
   .empty{
     border:1px dashed var(--line); border-radius:5px; padding:26px 18px; text-align:center;
     color:var(--muted); font-size:14px; line-height:1.9;
   }
   .banner{
-    background:#2A1D1B; border:1px solid var(--standby); color:#F0C6BF;
+    background:var(--danger-bg); border:1px solid var(--standby); color:var(--danger-ink);
     font-size:12px; line-height:1.6; padding:9px 12px; border-radius:4px;
   }
   .imp{
     border:1px solid var(--line); border-radius:5px; background:var(--panel); padding:11px;
   }
   .imp summary{
-    font-size:13px; color:var(--paper); cursor:pointer; list-style:none; padding:2px 0;
+    font-size:13px; color:var(--ui-ink); cursor:pointer; list-style:none; padding:2px 0;
   }
   .imp summary::-webkit-details-marker{display:none}
   .imp summary::before{content:"＋ "; color:var(--muted)}
@@ -180,15 +294,89 @@
   .imp[open] summary{margin-bottom:9px; padding-bottom:9px; border-bottom:1px solid var(--line)}
   .imp > *:not(summary){margin-top:9px}
   .imp textarea{font-family:var(--gothic); font-size:14px; min-height:120px}
-  .imp code{font-family:var(--mono); font-size:12px; color:#B9C0CE}
+  .imp code{font-family:var(--mono); font-size:12px; color:var(--soft-ink)}
   .msg{font-size:12px; line-height:1.7; min-height:1em}
   .msg.ok{color:var(--go)}
   .msg.ng{color:var(--standby)}
+  .empty-actions{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:12px}
+  dialog{width:min(440px,calc(100% - 28px)); color:var(--ui-ink); background:var(--panel);
+    border:1px solid var(--line); border-radius:8px; padding:20px; box-shadow:var(--card-shadow)}
+  dialog::backdrop{background:rgba(0,0,0,.55)}
+  dialog h2{font-size:18px; margin:0 0 12px}
+  dialog p{font-size:13px; color:var(--muted); line-height:1.8}
+  .prompt-dialog{width:min(760px,calc(100% - 28px))}
+  .prompt-dialog textarea{height:min(56vh,540px); min-height:260px; font-family:var(--gothic); font-size:13px}
+  .keys{display:grid; grid-template-columns:auto 1fr; gap:8px 14px; font-size:13px; margin:16px 0}
+  kbd{font-family:var(--mono); border:1px solid var(--line); border-radius:4px; padding:3px 7px; background:var(--stage)}
   @media (max-width:520px){
-    .clock{font-size:25px}
-    .bar{gap:8px; padding:9px 11px}
+    .clock{font-size:18px}
+    .bar{min-height:52px; gap:4px; padding:4px 8px}
+    .bar::after{content:""; position:absolute; z-index:0; top:4px; right:6px; bottom:4px;
+      left:calc(50% - 146px);
+      border:1px solid var(--line); border-radius:25px; background:var(--hover-bg); pointer-events:none}
+    .bar > *{z-index:1}
+    .player-center{gap:4px}
+    .transport{gap:2px; padding:2px 4px}
+    .transport .btn{width:26px; height:32px}
+    .transport .play{width:32px; height:36px}
+    .transport svg{width:15px; height:15px}
+    .transport .play svg{width:18px; height:18px}
+    .brand-full{display:none}
+    .brand-short{display:inline}
+    .brand{font-size:26px}
+    .desktop-action{display:none}
+    #focusBtn{display:block; position:absolute; top:50%; left:calc(50% + 80px); width:48px; height:34px;
+      min-height:34px; padding:0; border-color:var(--line); border-radius:5px;
+      background:var(--panel); font-size:12px; transform:translateY(-50%)}
+    .mobile-nav-actions{display:block}
+    body.focus #focusBtn{display:block}
+    .save-state{display:none}
+    .ctrls{gap:4px; flex-wrap:nowrap}
+    .ctrls > .btn{min-height:38px; padding-inline:5px; font-size:12px}
+    #menuBtn{width:44px; min-width:44px; height:44px; padding:0; font-size:22px; line-height:1}
     main{padding:10px; gap:8px}
     .card{padding:16px 17px}
+    .ondeck{padding:5px; gap:5px}
+    .ondeck .nav{padding:11px 9px}
+    .ondeck .lbl{display:none}
+    .ondeck .txt{font-size:12px}
+    .ondeck .cd{font-size:17px}
+    .cue-label-toggle{
+      display:block; width:max-content; margin:0 0 0 20px; padding:3px 8px 4px;
+      color:var(--muted); background:var(--panel); border:1px solid var(--line); border-top:0;
+      border-radius:0 0 4px 4px; font-size:10px; line-height:1.3; text-align:left;
+    }
+    .cue-label-toggle::after{content:"⌄"; float:right}
+    .cue-label-toggle[aria-expanded="true"]{
+      position:absolute; z-index:5; top:4px; right:24px; margin:0; padding:2px 6px;
+      border:0; border-radius:3px; background:var(--stage); font-size:10px;
+    }
+    .cue-label-toggle[aria-expanded="true"]::after{content:"×"; margin-left:4px}
+    .cue-labels{display:none}
+    .cue-labels.open{display:block; height:36px}
+    .cue-label{top:6px; max-width:116px; font-size:14px; line-height:24px}
+    .inline-save{display:inline-block; padding:4px 7px; border-color:var(--go); color:var(--go);
+      background:var(--hover-bg); font-size:11px; letter-spacing:0}
+    .imp textarea, .prompt-dialog textarea{font-size:16px}
+  }
+  @media (min-width:521px){
+    body.focus #menuBtn{display:block; visibility:hidden; pointer-events:none}
+    body.focus .fullscreen-fab{display:grid; place-items:center; position:fixed; z-index:30;
+      right:18px; bottom:calc(76px + env(safe-area-inset-bottom)); width:48px; height:48px;
+      padding:0; border:2px solid var(--go-strong); border-radius:50%; background:transparent;
+      color:var(--go-strong); box-shadow:none}
+    body.focus .fullscreen-fab svg{width:23px; height:23px; fill:none; stroke:currentColor;
+      stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+  }
+  @media (max-width:360px){
+    .bar::after{left:30px; right:6px}
+    .brand{font-size:24px}
+    .clock{font-size:16px}
+    .transport{gap:2px; padding-inline:2px}
+    .transport .btn{width:22px}
+    .transport .play{width:30px}
+    #focusBtn{left:calc(50% + 69px); width:42px}
+    #menuBtn{width:40px; min-width:40px}
   }
   @media (prefers-reduced-motion:reduce){
     *{animation:none !important; transition:none !important}
@@ -199,21 +387,39 @@
 
 <header>
   <div class="bar">
-    <div class="clock" id="clock">00:00</div>
+    <button class="brand nonlive" id="brandBtn" type="button" title="表示モードへ戻る" aria-label="表示モードへ戻る"><span class="brand-full">Kanpe</span><span class="brand-short">K</span></button>
+    <div class="player-center">
+      <div class="clock-group">
+        <div class="clock" id="clock">00:00</div>
+        <span class="save-state opt" id="saveState" aria-live="polite"></span>
+      </div>
+      <div class="transport" aria-label="タイムライン操作">
+        <button class="btn" id="cueStartBtn" type="button" title="台本の冒頭へ" aria-label="台本の冒頭へ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h2v14H5zm14 0v14L8 12z"/></svg></button>
+        <button class="btn" id="topPrev" type="button" title="前の項目へ" aria-label="前の項目へ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14L7 12z"/></svg></button>
+        <button class="btn play" id="toggle" type="button" title="開始" aria-label="開始"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="btn" id="topNext" type="button" title="次の項目へ" aria-label="次の項目へ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14l11-7z"/></svg></button>
+        <button class="btn" id="cueEndBtn" type="button" title="終点へ" aria-label="終点へ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 5h2v14h-2zM5 5v14l11-7z"/></svg></button>
+      </div>
+    </div>
     <div class="ctrls" id="ctrls">
-      <button class="btn primary" id="toggle">開始</button>
-      <button class="btn opt" id="reset">戻す</button>
-      <button class="btn ghost opt" id="smaller" title="文字を小さく">A−</button>
-      <button class="btn ghost opt" id="bigger" title="文字を大きく">A+</button>
-      <button class="btn ghost" id="focusBtn" title="台本を大きく表示">⤢</button>
-      <button class="btn opt" id="editBtn">編集</button>
+      <button class="btn nonlive desktop-action" id="fullEditBtn" type="button" title="台本を一覧で編集">一覧</button>
+      <button class="btn nonlive desktop-action" id="editBtn">編集</button>
+      <button class="btn fullscreen-fab" id="fullscreenBtn" type="button" title="フルスクリーンにする" aria-label="フルスクリーンにする"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5"/></svg></button>
+      <button class="btn desktop-action" id="focusBtn" title="本番表示にする">本番</button>
+      <button class="btn ghost opt nonlive" id="menuBtn" type="button" aria-label="メニューを開く">☰</button>
     </div>
   </div>
-  <div class="ribbon" id="ribbon"><div class="fill" id="fill"></div></div>
+  <div class="cue-label-area">
+    <div class="cue-labels" id="cueLabels"></div>
+    <button class="cue-label-toggle opt" id="cueLabelsToggle" type="button" aria-expanded="false" aria-controls="cueLabels" aria-label="見出しを表示">見出しを表示</button>
+  </div>
+  <div class="ribbon" id="ribbon" aria-label="台本のタイムライン">
+    <div class="fill" id="fill"></div><div class="playhead" id="playhead" aria-hidden="true"></div>
+  </div>
 </header>
 
 <main id="view">
-  <div class="card" id="card">
+  <div class="card" id="card" title="ダブルクリックで現在の項目を編集">
     <div class="eyebrow" id="eyebrow"></div>
     <div class="script" id="script"></div>
   </div>
@@ -232,9 +438,15 @@
   <div class="banner" id="storeWarn" hidden>
     このプレビューでは保存が使えません。ファイルをダウンロードして開くか、公開したURLで開くと、内容が端末に残ります。
   </div>
+  <div class="row">
+    <div class="top">
+      <label for="titleInput">タイトル</label>
+      <input type="text" id="titleInput" placeholder="無題の台本" autocomplete="off">
+    </div>
+  </div>
   <p class="note">
     開始からの経過時間で切り替わります。時間は <b>分:秒</b>（例 <code>3:30</code>）か <b>分</b> だけでも入力できます。<br>
-    台本は自分の端末にだけ保存されます。ほかの人には見えません。
+    最後の項目が表示される時刻でタイマーは自動停止します。台本は自分の端末にだけ保存されます。
   </p>
   <div id="rows"></div>
   <div style="display:flex; gap:8px; flex-wrap:wrap">
@@ -263,6 +475,55 @@
   </details>
 </section>
 
+<dialog id="helpDialog">
+  <h2>使い方とキー操作</h2>
+  <p><b>表示と編集：</b>「編集」または台本のダブルクリックで、表示中の本文をその場で編集できます。「保存」かCtrl／⌘＋Enterで確定、Escで破棄します。時刻変更や並べ替えは「一覧」を使います。</p>
+  <p><b>再生操作：</b>上部プレイヤーは、冒頭・前の項目・再生／停止・次の項目・終点の順です。タイムラインや下部の前後ボタンからも移動できます。</p>
+  <p><b>終点：</b>最後の項目がタイムラインの終点です。その時刻へ到達すると自動停止します。最後まで計測する台本では、末尾に本文なしの「終了」項目を置いてください。</p>
+  <p><b>本番：</b>操作を絞った表示へ切り替えますが、フルスクリーンにはなりません。PCでは本番中に右下の専用ボタンから任意でフルスクリーンにできます。</p>
+  <div class="keys">
+    <kbd>Space</kbd><span>開始／一時停止</span>
+    <kbd>← →</kbd><span>前／次の項目</span>
+    <kbd>F</kbd><span>本番表示の開始／終了</span>
+    <kbd>Ctrl / ⌘ + Enter</kbd><span>表示中の編集を保存</span>
+    <kbd>Esc</kbd><span>編集を破棄／本番表示を終了</span>
+  </div>
+  <form method="dialog"><button class="btn primary">閉じる</button></form>
+</dialog>
+
+<dialog class="nav-dialog" id="navDialog" tabindex="-1">
+  <h2>メニュー</h2>
+  <div class="menu">
+    <div class="mobile-nav-actions">
+      <button class="btn ghost" id="mobileFullEditBtn" type="button">一覧を編集</button>
+      <button class="btn ghost" id="mobileEditBtn" type="button">表示中を編集</button>
+      <div class="menu-sep"></div>
+    </div>
+    <div class="menu-label">表示設定</div>
+    <button class="btn ghost" id="smaller">A−　文字を小さく</button>
+    <button class="btn ghost" id="bigger">A+　文字を大きく</button>
+    <button class="btn ghost" id="themeBtn" type="button">☀　ライトモード</button>
+    <button class="btn ghost" id="refitBtn" type="button">↻　表示を再計算</button>
+    <button class="btn ghost" id="helpBtn" type="button">?　使い方とキー操作</button>
+    <div class="menu-sep"></div>
+    <div class="menu-label">AI用テンプレート</div>
+    <button class="btn ghost" id="promptConvertBtn" type="button">📄　JSON変換プロンプト</button>
+    <button class="btn ghost" id="promptCreateBtn" type="button">📄　台本作成プロンプト</button>
+    <button class="btn ghost" id="promptAllBtn" type="button">⤓　2種類を一括保存</button>
+  </div>
+  <form method="dialog" style="margin-top:10px"><button class="btn">閉じる</button></form>
+</dialog>
+
+<dialog class="prompt-dialog" id="promptDialog">
+  <h2 id="promptDialogTitle">AI用テンプレート</h2>
+  <p>内容を確認してからダウンロードできます。この画面上で編集して保存することもできます。</p>
+  <textarea id="promptPreview" aria-label="テンプレート内容"></textarea>
+  <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap">
+    <button class="btn primary" id="promptDownloadBtn" type="button">⤓ ダウンロード</button>
+    <form method="dialog"><button class="btn">閉じる</button></form>
+  </div>
+</dialog>
+
 <script>
 (function(){
   "use strict";
@@ -272,10 +533,20 @@
   try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); }
   catch(e){ canStore = false; }
   var KEY = "kanpe.v1";
+  var saveTimer = null;
+  function saveState(text, ok){
+    var el = document.getElementById("saveState");
+    if(!el) return;
+    el.textContent = text;
+    el.className = "save-state opt" + (ok ? " ok" : "");
+  }
   function save(){
-    var data = JSON.stringify({cues:cues, scale:scale});
-    if(canStore){ try{ localStorage.setItem(KEY,data); return; }catch(e){ canStore=false; } }
+    saveState("保存中…", false);
+    var data = JSON.stringify({cues:cues, scale:scale, title:title, theme:theme});
+    if(canStore){ try{ localStorage.setItem(KEY,data); }catch(e){ canStore=false; } }
     mem[KEY] = data;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function(){ saveState(canStore ? "✓ 台本を端末保存" : "一時保存のみ", canStore); }, 350);
   }
   function load(){
     var raw = null;
@@ -288,14 +559,127 @@
   /* ---------- 状態 ---------- */
   var cues = [];            // {at:秒, text:文字列}
   var scale = 1;
+  var title = "";
+  var theme = "dark";
   var running = false, startedAt = 0, offset = 0;
   var wakeLock = null;
+  var inlineCue = null, inlineOriginal = "";
 
   var saved = load();
-  if(saved){ cues = saved.cues || []; scale = saved.scale || 1; }
+  if(saved){ cues = saved.cues || []; scale = saved.scale || 1; title = saved.title || ""; theme = saved.theme === "light" ? "light" : "dark"; }
   document.documentElement.style.setProperty("--scale", scale);
 
   var $ = function(id){ return document.getElementById(id); };
+  function closeMenu(){ if($("navDialog").open) $("navDialog").close(); }
+  function applyTheme(){
+    var light = theme === "light";
+    document.documentElement.setAttribute("data-theme", theme);
+    $("themeBtn").textContent = light ? "☾　ダークモード" : "☀　ライトモード";
+    $("themeBtn").title = light ? "ダークモードに切り替え" : "ライトモードに切り替え";
+    $("themeBtn").setAttribute("aria-label", $("themeBtn").title);
+    $("themeBtn").setAttribute("aria-pressed", light ? "true" : "false");
+  }
+  applyTheme();
+  $("titleInput").value = title;
+  $("titleInput").addEventListener("input", function(){ title = $("titleInput").value; save(); });
+
+  // ファイル名として使えない文字を落とす
+  function safeFileName(s){
+    var t = String(s||"").trim().replace(/[\\/:*?"<>|\x00-\x1F]/g, " ").replace(/\s+/g," ").trim();
+    return t ? t.slice(0,80) : "kanpe";
+  }
+  function downloadText(name, content){
+    var blob = new Blob([content], {type:"text/plain;charset=utf-8"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  }
+
+  var PROMPT_CONVERT = [
+    "# 既存台本を『カンペ』用JSONに変換するプロンプト",
+    "",
+    "あなたは、配布済みの進行台本を、時間で自動切替するカンペ用JSONへ整える編集者です。以下に貼る台本を、事実や固有名詞を変えずに読みやすく再構成してください。",
+    "",
+    "## 出力形式",
+    "JSONだけを出力してください。説明、前置き、Markdownのコードフェンスは不要です。",
+    '{"title":"台本タイトル","cues":[{"at":0,"text":"01 開会挨拶\\n読み上げる本文"}]}',
+    "",
+    "## 必須ルール",
+    "- atは開始からの秒数を表す0以上の整数にし、昇順に並べる",
+    "- 最初の項目は原則at: 0にする",
+    "- 元台本に時刻や所要時間があれば最優先し、勝手に変更しない",
+    "- 時刻がなければ、日本語の読み上げを1分あたり約280〜320文字として自然な区切りで見積もる",
+    "- 1項目が長すぎる場合は、文や話題の切れ目で分割する。文の途中では切らない",
+    "- 最後には必ず、自動停止用の『終了』項目を1件追加する",
+    "- このアプリはcuesの最後のatをタイムラインの終点として扱い、その時刻でタイマーを自動停止する",
+    "- 終了項目のatは、元台本に終了時刻や全体時間があればその時刻にする。なければ全文の読み上げ時間を見積もった終了時刻にする",
+    "- 終了項目より前に、最後の読み上げ本文を読み終えるための時間を確保する。終了項目には読み上げ本文を入れない",
+    "- 終了項目のtextも連番から始め、『04 終了』のように実際の最終番号と『終了』を書く",
+    "- textの先頭は必ず番号から始める。番号の前に記号、絵文字、空白を置かない",
+    "- 形式は『01 半角空白 短い要約』とし、番号を含む先頭8文字以内で内容が分かるようにする",
+    "- 例: 『01 開会挨拶』『02 講師紹介』『03 質疑応答』",
+    "- 見出しの直後で改行し、その下に実際に読む本文を書く",
+    "- 項目数が100以上なら番号を001、002のような3桁に統一する",
+    "- 氏名、会社名、数値、URL、注意事項は原文どおり保持する",
+    "- 読み上げない指示は【間を取る】【画面切替】のように区別する",
+    "- 情報を創作しない。不明点は本文中へ『【要確認】』と明記する",
+    "- JSONとして解析できるよう、改行や引用符を正しくエスケープする",
+    "",
+    "## 変換する元台本",
+    "以下に台本を貼り付けます。",
+    "",
+    "----- ここから -----",
+    "（ここに既存の台本を貼り付ける）",
+    "----- ここまで -----"
+  ].join("\n");
+
+  var PROMPT_CREATE = [
+    "# 『カンペ』用の新規台本を作成するプロンプト",
+    "",
+    "あなたは、司会・講演・動画収録で読みやすい進行台本を作る構成作家です。下記の条件から、時間で自動切替できるカンペ用JSONを作成してください。",
+    "",
+    "## 出力形式",
+    "JSONだけを出力してください。説明、前置き、Markdownのコードフェンスは不要です。",
+    '{"title":"台本タイトル","cues":[{"at":0,"text":"01 開会挨拶\\n読み上げる本文"}]}',
+    "",
+    "## 構成ルール",
+    "- atは開始からの秒数を表す0以上の整数にし、昇順に並べる",
+    "- 最初の項目はat: 0にする",
+    "- 指定された全体時間へ収まるよう、日本語の読み上げを1分あたり約280〜320文字で設計する",
+    "- 30〜90秒を目安に、話題や操作が変わる位置で項目を分ける",
+    "- 最後には必ず、自動停止用の『終了』項目を1件追加する",
+    "- このアプリはcuesの最後のatをタイムラインの終点として扱い、その時刻でタイマーを自動停止する",
+    "- 終了項目のatは指定された全体時間と一致させる。全体時間が未指定なら、全文の読み上げ時間を見積もって決める",
+    "- 最後の読み上げ本文は終了時刻より前に読み終わる配分にし、終了項目には読み上げ本文を入れない",
+    "- 終了項目のtextも連番から始め、『04 終了』のように実際の最終番号と『終了』を書く",
+    "- textの先頭は必ず番号から始め、番号の前に記号、絵文字、空白を置かない",
+    "- 形式は『01 半角空白 短い要約』とし、番号を含む先頭8文字以内で内容が分かるようにする",
+    "- 例: 『01 導入』『02 商品紹介』『03 まとめ』",
+    "- 見出しの直後で改行し、その下に読み上げ本文を書く",
+    "- 項目数が100以上なら番号を001、002のような3桁に統一する",
+    "- 重要な固有名詞や数字は省略せず、読み間違えにくい文章にする",
+    "- 読み上げない動作指示は【間を取る】【スライド変更】のように書く",
+    "- 必要な情報が不足している場合は創作せず『【要確認: 内容】』と入れる",
+    "- JSONとして解析できるよう、改行や引用符を正しくエスケープする",
+    "",
+    "## 作成条件",
+    "タイトル: （入力）",
+    "用途・場面: （例: セミナー司会、商品紹介動画）",
+    "想定する聞き手: （入力）",
+    "全体時間: （例: 10分）",
+    "話し手・登場人物: （入力）",
+    "必ず含める内容: （入力）",
+    "避ける表現・注意事項: （入力）",
+    "希望する雰囲気: （例: 落ち着いた、親しみやすい）",
+    "参考資料: （必要に応じて貼り付ける）"
+  ].join("\n");
+  var promptFileName = "";
+  function showPrompt(titleText, fileName, content){
+    promptFileName = fileName;
+    $("promptDialogTitle").textContent = titleText;
+    $("promptPreview").value = content;
+    if($("promptDialog").showModal) $("promptDialog").showModal();
+  }
 
   /* ---------- 時間 ---------- */
   function elapsed(){ return running ? (Date.now()-startedAt)/1000 + offset : offset; }
@@ -329,25 +713,45 @@
   function sorted(){ return cues.slice().sort(function(a,b){ return a.at-b.at; }); }
   function total(){
     var s = sorted();
-    return s.length ? Math.max(s[s.length-1].at + 300, 300) : 600;
+    return s.length ? Math.max(s[s.length-1].at, 1) : 600;
   }
-
+  function cueTitle(text, isLast){
+    var raw = String(text || "（本文なし）");
+    if(isLast){
+      var heading = raw.split(/\r?\n/)[0].trim()
+        .replace(/^\d{1,3}(?:[.)）．:：-])?\s*/, "")
+        .replace(/^[■▶●◆・\-]\s*/, "");
+      if(/^(終了|終演|完了|終わり|おわり|END)(?:\s|$|[：:・])/i.test(heading)) return "終了";
+    }
+    return raw.replace(/\s+/g," ").trim().slice(0,8);
+  }
   /* ---------- タイマー操作 ---------- */
+  function setPlayButton(isPlaying, label){
+    $("toggle").innerHTML = isPlaying
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+    $("toggle").title = label;
+    $("toggle").setAttribute("aria-label", label);
+  }
   function start(){
     if(running) return;
+    if(inlineCue) finishInlineEdit(true);
+    var s = sorted();
+    if(s.length && s[s.length-1].at>0 && offset>=s[s.length-1].at) offset = 0;
     startedAt = Date.now(); running = true;
-    $("toggle").textContent = "一時停止";
+    setPlayButton(true, "一時停止");
     $("clock").classList.add("running");
     requestWake();
   }
   function pause(){
     if(!running) return;
     offset = elapsed(); running = false;
-    $("toggle").textContent = "再開";
+    setPlayButton(false, "再開");
     $("clock").classList.remove("running");
     releaseWake();
   }
   function seek(sec){
+    if(inlineCue) finishInlineEdit(true);
     offset = Math.max(0, sec);
     if(running) startedAt = Date.now();
     render();
@@ -364,63 +768,110 @@
   });
 
   /* ---------- 表示 ---------- */
-  var lastTicks = "", fitKey = "";
+  var lastTicks = "", fitKey = "", uniformKey = "", uniformSize = 13;
 
-  // カードに収まる最大の文字サイズを二分探索で決める
-  function fitText(){
-    var el = document.getElementById("script"), card = $("card"), eb = document.getElementById("eyebrow");
-    if(!el || !card) return;
+  function availHeight(){
+    var card = $("card"), eb = document.getElementById("eyebrow");
+    if(!card) return 0;
     var cs = getComputedStyle(card);
     var avail = card.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 2;
     if(eb) avail -= eb.offsetHeight + parseFloat(getComputedStyle(eb).marginBottom);
-    if(avail < 40) return;
-    var lo = 13, hi = Math.round(112 * scale), best = lo;
+    return avail;
+  }
+
+  // 全項目がそれぞれカードに収まる最大の文字サイズを二分探索で決める
+  // （項目ごとに個別最適化すると文字の大きさがガタつくため、全項目共通の1サイズにする）
+  function computeUniformSize(){
+    var el = document.getElementById("script");
+    if(!el) return uniformSize;
+    var avail = availHeight();
+    if(avail < 40) return uniformSize;
+    var texts = sorted().map(function(c){ return c.text || "（本文なし）"; });
+    if(!texts.length) return uniformSize;
+    var prevText = el.textContent, prevSize = el.style.fontSize;
+    var lo = 13, hi = 112, best = lo;
     while(lo <= hi){
       var mid = (lo + hi) >> 1;
       el.style.fontSize = mid + "px";
-      if(el.scrollHeight <= avail){ best = mid; lo = mid + 1; } else { hi = mid - 1; }
+      var fits = true;
+      for(var i=0;i<texts.length;i++){
+        el.textContent = texts[i];
+        if(el.scrollHeight > avail){ fits = false; break; }
+      }
+      if(fits){ best = mid; lo = mid + 1; } else { hi = mid - 1; }
     }
-    el.style.fontSize = best + "px";
-    card.style.overflowY = (el.scrollHeight > avail + 1) ? "auto" : "hidden";
+    el.textContent = prevText; el.style.fontSize = prevSize;
+    return best;
   }
 
   function setFocus(on){
     document.body.classList.toggle("focus", !!on);
-    $("focusBtn").textContent = on ? "⤡" : "⤢";
-    $("focusBtn").title = on ? "操作ボタンを表示" : "台本を大きく表示";
-    if(on){
-      var r = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
-      if(r){ try{ r.call(document.documentElement); }catch(e){} }
-    }else if(document.fullscreenElement || document.webkitFullscreenElement){
-      var x = document.exitFullscreen || document.webkitExitFullscreen;
-      if(x){ try{ x.call(document); }catch(e){} }
-    }
-    fitKey = ""; render();
+    $("focusBtn").textContent = on ? "終了" : "本番";
+    $("focusBtn").title = on ? "本番表示を終了" : "本番表示にする";
+    fitKey = ""; uniformKey = ""; render();
   }
-  window.addEventListener("resize", function(){ fitKey = ""; render(); });
-  document.addEventListener("fullscreenchange", function(){ fitKey = ""; render(); });
+  window.addEventListener("resize", function(){ fitKey = ""; uniformKey = ""; render(); });
+  function fullscreenChanged(){
+    var on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    $("fullscreenBtn").innerHTML = on
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h6V3m12 6h-6V3M3 15h6v6m12-6h-6v6"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5"/></svg>';
+    $("fullscreenBtn").title = on ? "フルスクリーンを終了" : "フルスクリーンにする";
+    $("fullscreenBtn").setAttribute("aria-label", $("fullscreenBtn").title);
+    fitKey = ""; uniformKey = ""; render();
+  }
+  document.addEventListener("fullscreenchange", fullscreenChanged);
+  document.addEventListener("webkitfullscreenchange", fullscreenChanged);
   function render(){
     var e = elapsed(), s = sorted(), T = total();
+    var endAt = s.length ? s[s.length-1].at : null;
+    if(running && endAt>0 && e>=endAt){
+      offset = endAt; e = endAt; running = false;
+      setPlayButton(false, "最初から再生");
+      $("clock").classList.remove("running");
+      releaseWake();
+    }
     $("clock").textContent = fmt(e);
+    if(inlineCue) return;
 
     // タイムライン
-    $("fill").style.width = Math.min(100, e/T*100) + "%";
+    var progress = Math.min(100, e/T*100);
+    $("fill").style.width = progress + "%";
+    $("playhead").style.left = progress + "%";
     var idx = -1;
     for(var i=0;i<s.length;i++){ if(s[i].at <= e) idx = i; }
     var nxt = s[idx+1];
-    var sig = s.map(function(c){return c.at;}).join(",") + "|" + T;
+    var sig = s.map(function(c,i){return c.at+":"+cueTitle(c.text,i===s.length-1);}).join(",") + "|" + T;
     if(sig !== lastTicks){
       lastTicks = sig;
       var rb = $("ribbon");
+      var labelBox = $("cueLabels");
+      labelBox.hidden = s.length === 0;
+      $("cueLabelsToggle").hidden = s.length === 0;
+      labelBox.innerHTML = "";
       Array.prototype.slice.call(rb.querySelectorAll(".tick")).forEach(function(n){ n.remove(); });
       s.forEach(function(c, i){
+        var pct = Math.min(100, c.at/T*100);
+        var isEnd = i===s.length-1;
+        var endAligned = isEnd && pct>50;
+        var nextPct = !isEnd ? Math.min(100, s[i+1].at/T*100) : 100;
+        var room = Math.max(0, nextPct-pct);
+        var label = document.createElement("span");
+        label.className = "cue-label" + (endAligned ? " end" : "");
+        label.style.left = pct + "%";
+        label.style.width = isEnd ? "116px" : room > 0.2 ? "calc(" + room + "% - 5px)" : "0px";
+        label.textContent = cueTitle(c.text, isEnd);
+        labelBox.appendChild(label);
         var b = document.createElement("button");
         b.className = "tick"; b.type = "button";
-        b.style.left = Math.min(100, c.at/T*100) + "%";
-        b.title = fmt(c.at);
+        b.style.left = pct + "%";
+        b.title = fmt(c.at) + "　" + cueTitle(c.text, isEnd);
         b.setAttribute("aria-label", fmt(c.at) + "へ移動");
         b.appendChild(document.createElement("i"));
-        b.addEventListener("click", function(ev){ ev.stopPropagation(); seek(c.at); });
+        b.addEventListener("click", function(ev){
+          ev.stopPropagation();
+          if(!document.body.classList.contains("focus")) seek(c.at);
+        });
         rb.appendChild(b);
       });
     }
@@ -447,17 +898,30 @@
       if(card.className !== "card"){
         card.className = "card";
         card.innerHTML = '<div class="eyebrow" id="eyebrow"></div><div class="script" id="script"></div>';
-        fitKey = "";
+        fitKey = ""; uniformKey = "";
       }
+      var itemTime = nxt
+        ? fmt(e-cur.at) + " / " + fmt(Math.max(0, nxt.at-cur.at))
+        : fmt(e-cur.at);
       $("eyebrow").innerHTML =
         '<span class="at">'+fmt(cur.at)+'</span><span>'+(idx+1)+' / '+s.length+'</span>'+
-        '<span class="elapsed">この項目 '+fmt(e-cur.at)+'</span>';
+        '<span class="elapsed">この項目 '+itemTime+'</span>';
       var body = cur.text || "（本文なし）";
-      var key = idx+"|"+body+"|"+scale+"|"+document.body.className+"|"+window.innerWidth+"x"+window.innerHeight;
+      var uKey = s.map(function(c){ return c.text; }).join("")+"|"+document.body.className+"|"+window.innerWidth+"x"+window.innerHeight;
+      if(uKey !== uniformKey){
+        uniformKey = uKey;
+        uniformSize = computeUniformSize();
+        fitKey = "";
+      }
+      // 自動フィットしたサイズを基準に、A+/A− の倍率をかけて表示する
+      var displaySize = Math.max(10, Math.round(uniformSize * scale));
+      var key = idx+"|"+body+"|"+displaySize;
       if(key !== fitKey){
         fitKey = key;
-        $("script").textContent = body;
-        fitText();
+        var script = $("script");
+        script.textContent = body;
+        script.style.fontSize = displaySize + "px";
+        card.style.overflowY = (script.scrollHeight > availHeight() + 1) ? "auto" : "hidden";
       }
     }
 
@@ -475,63 +939,278 @@
     }
     $("next").disabled = !nxt;
     $("prev").disabled = idx < 0;
+    $("topNext").disabled = !nxt;
+    $("topPrev").disabled = idx < 0;
+    $("cueStartBtn").disabled = s.length === 0;
+    $("cueEndBtn").disabled = s.length === 0;
   }
   setInterval(function(){ if(!$("editView").hidden) return; render(); }, 250);
 
   /* ---------- 編集 ---------- */
+  // 隣の項目と表示時刻を入れ替えて、順番だけを動かす
+  function moveCue(i, dir){
+    var j = i + dir;
+    if(j < 0 || j >= cues.length) return;
+    var tmp = cues[i].at; cues[i].at = cues[j].at; cues[j].at = tmp;
+    cues = sorted(); save(); drawRows();
+  }
+
   function drawRows(){
+    cues = sorted();
     var box = $("rows"); box.innerHTML = "";
     $("storeWarn").hidden = canStore;
     if(cues.length===0){
       var em = document.createElement("div");
       em.className = "empty";
-      em.textContent = "項目がありません。「項目を追加」から、出したい時間と読む内容を入れてください。";
+      em.innerHTML = "<div>台本を作りましょう。最初から作るか、サンプルで動きを試せます。</div>"+
+        '<div class="empty-actions"><button class="btn primary" id="emptyAdd">最初の項目を作る</button>'+
+        '<button class="btn" id="sampleBtn">サンプルを試す</button></div>';
       box.appendChild(em);
+      $("emptyAdd").addEventListener("click", function(){ $("add").click(); });
+      $("sampleBtn").addEventListener("click", function(){
+        cues = [
+          {at:0, text:"みなさん、本日はお集まりいただきありがとうございます。\nそれでは始めます。"},
+          {at:30, text:"本日の流れをご案内します。\n・オープニング\n・メインテーマ\n・まとめ"},
+          {at:90, text:"以上で終了です。\nありがとうございました。"}
+        ];
+        title = "サンプル台本"; $("titleInput").value = title; save(); drawRows();
+      });
       return;
     }
     cues.forEach(function(c, i){
       var row = document.createElement("div"); row.className = "row";
 
       var top = document.createElement("div"); top.className = "top";
-      var lab = document.createElement("label"); lab.textContent = "開始から";
+      var lab = document.createElement("label");
+      lab.textContent = i===cues.length-1 ? "開始から・終点" : "開始から";
       var t = document.createElement("input");
       t.type = "text"; t.value = fmt(c.at); t.inputMode = "text";
       t.setAttribute("aria-label", (i+1)+"番目の表示時間");
       t.addEventListener("change", function(){ c.at = parseTime(t.value); t.value = fmt(c.at); save(); drawRows(); });
+      var up = document.createElement("button");
+      up.className = "btn ghost"; up.textContent = "▲"; up.title = "ひとつ前と順番を入れ替え";
+      up.setAttribute("aria-label", (i+1)+"番目をひとつ前へ");
+      up.disabled = i===0;
+      up.addEventListener("click", function(){ moveCue(i,-1); });
+      var down = document.createElement("button");
+      down.className = "btn ghost"; down.textContent = "▼"; down.title = "ひとつ後と順番を入れ替え";
+      down.setAttribute("aria-label", (i+1)+"番目をひとつ後へ");
+      down.disabled = i===cues.length-1;
+      down.addEventListener("click", function(){ moveCue(i,1); });
       var sp = document.createElement("span"); sp.className = "sp";
       var del = document.createElement("button");
       del.className = "btn ghost"; del.textContent = "削除";
       del.addEventListener("click", function(){ cues.splice(i,1); save(); drawRows(); });
-      top.appendChild(lab); top.appendChild(t); top.appendChild(sp); top.appendChild(del);
+      top.appendChild(lab); top.appendChild(t); top.appendChild(up); top.appendChild(down); top.appendChild(sp); top.appendChild(del);
 
       var ta = document.createElement("textarea");
       ta.value = c.text || "";
       ta.placeholder = "読み上げる内容、または箇条書きのメモ";
       ta.setAttribute("aria-label", (i+1)+"番目の内容");
-      ta.addEventListener("input", function(){ c.text = ta.value; save(); });
+      var preview = document.createElement("div"); preview.className = "cue-preview";
+      var previewLabel = document.createElement("span"); previewLabel.textContent = "タイムライン・先頭8文字";
+      var previewText = document.createElement("span"); previewText.className = "sample";
+      function updatePreview(){ previewText.textContent = cueTitle(ta.value, i===cues.length-1); }
+      updatePreview(); preview.appendChild(previewLabel); preview.appendChild(previewText);
+      ta.addEventListener("input", function(){ c.text = ta.value; updatePreview(); save(); });
 
       row.appendChild(top); row.appendChild(ta);
+      row.appendChild(preview);
       box.appendChild(row);
     });
   }
 
-  function setMode(editing){
+  function currentCueIndex(){
+    var s = sorted(), e = elapsed(), idx = s.length ? 0 : -1;
+    for(var i=0;i<s.length;i++){
+      if(s[i].at <= e) idx = i;
+      else break;
+    }
+    return idx;
+  }
+
+  function beginInlineEdit(){
+    if(inlineCue || !$("editView").hidden || document.body.classList.contains("focus")) return;
+    var s = sorted(), idx = currentCueIndex(), script = $("script");
+    if(!s.length) return setMode(true);
+    if(!script) return setMode(true, idx);
+    if(running) pause();
+    inlineCue = s[idx]; inlineOriginal = inlineCue.text || "";
+    $("card").classList.add("editing");
+    script.setAttribute("contenteditable", "true");
+    script.setAttribute("role", "textbox");
+    script.setAttribute("aria-multiline", "true");
+    script.spellcheck = true;
+    var isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+    var editSize = parseFloat(getComputedStyle(script).fontSize);
+    if(isiOS && editSize<16){
+      script.dataset.editFontSize = script.style.fontSize || "";
+      script.dataset.editZoom = "true";
+      script.style.fontSize = "16px";
+      script.style.zoom = String(editSize/16);
+    }
+    var mark = document.createElement("span");
+    mark.className = "editing-mark"; mark.textContent = "編集中";
+    $("eyebrow").appendChild(mark);
+    var inlineSave = document.createElement("button");
+    inlineSave.type = "button"; inlineSave.className = "btn inline-save";
+    inlineSave.textContent = "保存";
+    inlineSave.addEventListener("click", function(ev){
+      ev.stopPropagation(); finishInlineEdit(true);
+    });
+    $("eyebrow").appendChild(inlineSave);
+    $("editBtn").textContent = "保存";
+    script.onkeydown = function(ev){
+      if((ev.ctrlKey || ev.metaKey) && ev.key==="Enter"){
+        ev.preventDefault(); finishInlineEdit(true);
+      }else if(ev.key==="Escape"){
+        ev.preventDefault(); finishInlineEdit(false);
+      }
+    };
+    script.focus();
+    var selection = window.getSelection(), range = document.createRange();
+    range.selectNodeContents(script); range.collapse(false);
+    selection.removeAllRanges(); selection.addRange(range);
+  }
+
+  function finishInlineEdit(keep){
+    if(!inlineCue) return;
+    var script = $("script"), cue = inlineCue;
+    if(keep && script) cue.text = script.innerText.replace(/\r\n?/g,"\n");
+    else cue.text = inlineOriginal;
+    inlineCue = null; inlineOriginal = "";
+    if(script){
+      if(script.dataset.editZoom){
+        script.style.zoom = "";
+        script.style.fontSize = script.dataset.editFontSize || "";
+        delete script.dataset.editZoom; delete script.dataset.editFontSize;
+      }
+      script.removeAttribute("contenteditable"); script.removeAttribute("role");
+      script.removeAttribute("aria-multiline"); script.onkeydown = null;
+    }
+    $("card").classList.remove("editing");
+    $("editBtn").textContent = "編集";
+    if(keep) save();
+    lastTicks = ""; fitKey = ""; uniformKey = ""; render();
+  }
+
+  function setMode(editing, focusIndex){
+    if(inlineCue) finishInlineEdit(true);
+    if(editing && running) pause();
     $("editView").hidden = !editing;
     $("view").hidden = editing;
-    $("editBtn").textContent = editing ? "表示へ戻る" : "編集";
-    if(editing){ setFocus(false); drawRows(); } else { cues = sorted(); lastTicks = ""; fitKey = ""; render(); }
+    $("editBtn").textContent = editing ? "表示" : "編集";
+    $("brandBtn").title = editing ? "表示モードへ戻る" : "一覧を開く";
+    $("brandBtn").setAttribute("aria-label", $("brandBtn").title);
+    if(editing){
+      setFocus(false); drawRows();
+      if(focusIndex!=null && focusIndex>=0){
+        var fields = $("rows").querySelectorAll("textarea");
+        var field = fields[Math.min(focusIndex, fields.length-1)];
+        if(field){
+          field.focus(); field.setSelectionRange(field.value.length, field.value.length);
+          try{ field.scrollIntoView({block:"center", behavior:"smooth"}); }catch(e){ field.scrollIntoView(); }
+        }
+      }else $("editView").scrollTop = 0;
+    }else{
+      cues = sorted(); lastTicks = ""; fitKey = ""; uniformKey = ""; render();
+    }
   }
 
   /* ---------- 操作 ---------- */
-  $("toggle").addEventListener("click", function(){ running ? pause() : start(); });
-  $("focusBtn").addEventListener("click", function(){ setFocus(!document.body.classList.contains("focus")); });
-  $("card").addEventListener("click", function(){
-    setFocus(!document.body.classList.contains("focus"));
+  $("toggle").addEventListener("click", function(){
+    if(running){ pause(); return; }
+    if(!$("editView").hidden) setMode(false);
+    start();
   });
-  $("reset").addEventListener("click", function(){
-    if(elapsed() > 5 && !confirm("経過時間を 00:00 に戻します。よろしいですか？")) return;
+  $("brandBtn").addEventListener("click", function(){
+    var wasInline = !!inlineCue;
+    if(wasInline) finishInlineEdit(true);
+    if($("editView").hidden) setMode(true, wasInline ? currentCueIndex() : null);
+    else setMode(false);
+  });
+  $("menuBtn").addEventListener("click", function(){
+    if($("navDialog").showModal){
+      $("navDialog").showModal();
+      try{ $("navDialog").focus({preventScroll:true}); }catch(e){ $("navDialog").focus(); }
+    }
+  });
+  $("mobileFullEditBtn").addEventListener("click", function(){ closeMenu(); $("fullEditBtn").click(); });
+  $("mobileEditBtn").addEventListener("click", function(){ closeMenu(); $("editBtn").click(); });
+  $("navDialog").addEventListener("click", function(ev){
+    if(ev.target !== this) return;
+    var r = this.getBoundingClientRect();
+    var outside = ev.clientX<r.left || ev.clientX>r.right || ev.clientY<r.top || ev.clientY>r.bottom;
+    if(outside) closeMenu();
+  });
+  $("focusBtn").addEventListener("click", function(){
+    var on = !document.body.classList.contains("focus");
+    if(on && inlineCue) finishInlineEdit(true);
+    if(on && !$("editView").hidden) setMode(false);
+    setFocus(on);
+  });
+  $("fullscreenBtn").addEventListener("click", function(){
+    if(document.fullscreenElement || document.webkitFullscreenElement){
+      var exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if(exit){ try{ exit.call(document); }catch(e){} }
+    }else{
+      var enter = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+      if(enter){ try{ enter.call(document.documentElement); }catch(e){} }
+    }
+  });
+  $("themeBtn").addEventListener("click", function(){
+    theme = theme === "dark" ? "light" : "dark";
+    applyTheme(); save(); fitKey = ""; uniformKey = ""; closeMenu(); render();
+  });
+  $("helpBtn").addEventListener("click", function(){
+    closeMenu();
+    if($("helpDialog").showModal) $("helpDialog").showModal();
+    else alert("Space: 開始／一時停止\n← →: 前／次の項目\nF: 本番表示\nCtrl／⌘＋Enter: 編集を保存\nEsc: 編集を破棄／本番を終了");
+  });
+  $("refitBtn").addEventListener("click", function(){
+    closeMenu();
+    if(inlineCue) finishInlineEdit(true);
+    if(!$("editView").hidden) setMode(false);
+    fitKey = ""; uniformKey = ""; render();
+  });
+  $("fullEditBtn").addEventListener("click", function(){
+    closeMenu();
+    var idx = inlineCue ? currentCueIndex() : null;
+    if(inlineCue) finishInlineEdit(true);
+    setMode(true, idx);
+  });
+  $("promptConvertBtn").addEventListener("click", function(){
+    closeMenu();
+    showPrompt("既存台本をJSON化するプロンプト",
+      "01_既存台本をJSON化するプロンプト.txt", PROMPT_CONVERT);
+  });
+  $("promptCreateBtn").addEventListener("click", function(){
+    closeMenu();
+    showPrompt("台本作成プロンプト",
+      "02_台本作成プロンプト.txt", PROMPT_CREATE);
+  });
+  $("promptDownloadBtn").addEventListener("click", function(){
+    downloadText(promptFileName || "カンペ_AIテンプレート.txt", $("promptPreview").value);
+    $("promptDialog").close();
+  });
+  $("promptAllBtn").addEventListener("click", function(){
+    closeMenu();
+    downloadText("カンペ_AIプロンプト一括.txt",
+      PROMPT_CONVERT + "\n\n\n============================================================\n\n\n" + PROMPT_CREATE);
+  });
+  $("cueLabelsToggle").addEventListener("click", function(){
+    var open = !$("cueLabels").classList.contains("open");
+    $("cueLabels").classList.toggle("open", open);
+    this.setAttribute("aria-expanded", open ? "true" : "false");
+    this.setAttribute("aria-label", open ? "見出しを隠す" : "見出しを表示");
+    this.textContent = open ? "閉じる" : "見出しを表示";
+    fitKey = ""; uniformKey = ""; render();
+  });
+  $("cueStartBtn").addEventListener("click", function(){
+    if(!cues.length) return;
     running = false; offset = 0;
-    $("toggle").textContent = "開始";
+    setPlayButton(false, "開始");
     $("clock").classList.remove("running");
     releaseWake(); render();
   });
@@ -544,14 +1223,29 @@
     var s = sorted(), e = elapsed();
     for(var i=0;i<s.length;i++){ if(s[i].at > e){ seek(s[i].at); return; } }
   });
-  $("bigger").addEventListener("click", function(){ setScale(scale+0.15); });
-  $("smaller").addEventListener("click", function(){ setScale(scale-0.15); });
+  $("topPrev").addEventListener("click", function(){ $("prev").click(); });
+  $("topNext").addEventListener("click", function(){ $("next").click(); });
+  $("cueEndBtn").addEventListener("click", function(){
+    var s = sorted();
+    if(s.length) seek(s[s.length-1].at);
+  });
+  $("bigger").addEventListener("click", function(){ setScale(scale+0.15); closeMenu(); });
+  $("smaller").addEventListener("click", function(){ setScale(scale-0.15); closeMenu(); });
   function setScale(v){
     scale = Math.min(2.6, Math.max(0.6, Math.round(v*100)/100));
     save(); fitKey = ""; render();
   }
-  $("editBtn").addEventListener("click", function(){ setMode($("editView").hidden); });
+  $("editBtn").addEventListener("click", function(){
+    if(inlineCue) finishInlineEdit(true);
+    else if($("editView").hidden) beginInlineEdit();
+    else setMode(false);
+  });
+  $("card").addEventListener("dblclick", function(){
+    if(!cues.length) return;
+    beginInlineEdit();
+  });
   $("ribbon").addEventListener("click", function(ev){
+    if(document.body.classList.contains("focus")) return;
     var r = this.getBoundingClientRect();
     seek((ev.clientX - r.left)/r.width * total());
   });
@@ -566,10 +1260,10 @@
     cues = []; save(); drawRows();
   });
   $("exportBtn").addEventListener("click", function(){
-    var blob = new Blob([JSON.stringify({cues:sorted()}, null, 2)], {type:"application/json"});
+    var blob = new Blob([JSON.stringify({title:title, cues:sorted()}, null, 2)], {type:"application/json"});
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "kanpe.json"; a.click();
+    a.download = safeFileName(title) + ".json"; a.click();
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
   });
   /* ---------- 取り込み（崩れていても読めた分だけ拾う） ---------- */
@@ -604,7 +1298,7 @@
       if(!Array.isArray(arr)) continue;
       var out = [], skipped = 0;
       arr.forEach(function(o){ var c = fromObject(o); c ? out.push(c) : skipped++; });
-      if(out.length) return {cues:out, skipped:skipped};
+      if(out.length) return {cues:out, skipped:skipped, title:(!Array.isArray(d) && d.title) ? String(d.title) : ""};
     }
     return null;
   }
@@ -643,6 +1337,9 @@
       return;
     }
     cues = replace ? r.cues : cues.concat(r.cues);
+    if(r.title && (replace || !title)){
+      title = r.title; $("titleInput").value = title;
+    }
     cues = sorted(); save(); drawRows(); lastTicks = "";
     msg = $("impMsg");
     var parts = [r.cues.length + "件を" + (replace ? "置き換えました" : "追加しました")];
@@ -667,13 +1364,16 @@
   });
   document.addEventListener("keydown", function(ev){
     var t = ev.target.tagName;
-    if(t==="INPUT" || t==="TEXTAREA") return;
+    if(t==="INPUT" || t==="TEXTAREA" || t==="BUTTON" || ev.target.isContentEditable) return;
     if(ev.code==="Space"){ ev.preventDefault(); running ? pause() : start(); }
     else if(ev.key==="ArrowRight"){ $("next").click(); }
     else if(ev.key==="ArrowLeft"){ $("prev").click(); }
+    else if(ev.key==="f" || ev.key==="F"){ $("focusBtn").click(); }
+    else if(ev.key==="Escape" && document.body.classList.contains("focus")){ setFocus(false); }
   });
 
   setMode(cues.length===0);
+  saveState(canStore ? "✓ 台本を端末保存" : "一時保存のみ", canStore);
   render();
 })();
 </script>
