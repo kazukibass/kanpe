@@ -215,6 +215,7 @@
   /* 集中モード：開始したら操作系を畳んで台本を最大化 */
   body.focus .opt{display:none}
   body.focus .nonlive{display:none}
+  body.focus .brand{display:block; pointer-events:none; cursor:default}
   body.focus .cue-labels{display:none !important}
   body.focus .bar{padding:8px 14px}
   body.focus .ribbon{height:7px}
@@ -811,6 +812,9 @@
 
   function setFocus(on){
     document.body.classList.toggle("focus", !!on);
+    $("brandBtn").disabled = !!on;
+    $("brandBtn").title = on ? "Kanpe" : "表示モードへ戻る";
+    $("brandBtn").setAttribute("aria-label", on ? "Kanpe" : "表示モードへ戻る");
     $("focusBtn").textContent = on ? "終了" : "本番";
     $("focusBtn").title = on ? "本番表示を終了" : "本番表示にする";
     fitKey = ""; uniformKey = ""; render();
