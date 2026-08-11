@@ -125,7 +125,9 @@
     button.btn.primary:hover{background:var(--go)}
     button.btn:disabled:hover{border-color:var(--line); background:transparent; box-shadow:none}
   }
-  #menuBtn{min-width:38px; text-align:center}
+  #menuBtn{display:grid; place-items:center; min-width:38px; text-align:center}
+  #menuBtn svg{display:block; width:20px; height:20px; fill:none; stroke:currentColor;
+    stroke-width:2; stroke-linecap:round}
   #focusBtn{order:3}
   #menuBtn{order:4}
   .fullscreen-fab{display:none}
@@ -312,7 +314,7 @@
     .clock{font-size:18px}
     .bar{min-height:52px; gap:4px; padding:4px 8px}
     .bar::after{content:""; position:absolute; z-index:0; top:4px; right:6px; bottom:4px;
-      left:calc(50% - 146px);
+      left:calc(50% - 156px);
       border:1px solid var(--line); border-radius:25px; background:var(--hover-bg); pointer-events:none}
     .bar > *{z-index:1}
     .player-center{gap:4px}
@@ -325,7 +327,7 @@
     .brand-short{display:inline}
     .brand{font-size:26px}
     .desktop-action{display:none}
-    #focusBtn{display:block; position:absolute; top:50%; left:calc(50% + 80px); width:48px; height:34px;
+    #focusBtn{display:block; position:absolute; top:50%; left:calc(50% + 87px); width:48px; height:34px;
       min-height:34px; padding:0; border-color:var(--line); border-radius:5px;
       background:var(--panel); font-size:12px; transform:translateY(-50%)}
     .mobile-nav-actions{display:block}
@@ -333,7 +335,8 @@
     .save-state{display:none}
     .ctrls{gap:4px; flex-wrap:nowrap}
     .ctrls > .btn{min-height:38px; padding-inline:5px; font-size:12px}
-    #menuBtn{width:44px; min-width:44px; height:44px; padding:0; font-size:22px; line-height:1}
+    #menuBtn{width:44px; min-width:44px; height:44px; padding:0; line-height:1}
+    #menuBtn svg{width:22px; height:22px}
     main{padding:10px; gap:8px}
     .card{padding:16px 17px}
     .ondeck{padding:5px; gap:5px}
@@ -342,19 +345,21 @@
     .ondeck .txt{font-size:12px}
     .ondeck .cd{font-size:17px}
     .cue-label-toggle{
-      display:block; width:max-content; margin:0 0 0 20px; padding:3px 8px 4px;
+      display:grid; place-items:center; width:28px; height:19px; margin:0 0 0 20px; padding:0;
       color:var(--muted); background:var(--panel); border:1px solid var(--line); border-top:0;
-      border-radius:0 0 4px 4px; font-size:10px; line-height:1.3; text-align:left;
+      border-radius:0 0 4px 4px; font-size:0; line-height:1;
     }
-    .cue-label-toggle::after{content:"⌄"; float:right}
+    .cue-label-toggle::after{content:"▼"; font-size:9px}
     .cue-label-toggle[aria-expanded="true"]{
-      position:absolute; z-index:5; top:4px; right:24px; margin:0; padding:2px 6px;
-      border:0; border-radius:3px; background:var(--stage); font-size:10px;
+      position:absolute; z-index:5; top:4px; right:24px; width:26px; height:26px; margin:0; padding:0;
+      border:0; border-radius:3px; background:transparent; opacity:.62;
     }
-    .cue-label-toggle[aria-expanded="true"]::after{content:"×"; margin-left:4px}
+    .cue-label-toggle[aria-expanded="true"]::after{content:"×"; font-size:16px}
     .cue-labels{display:none}
     .cue-labels.open{display:block; height:36px}
-    .cue-label{top:6px; max-width:116px; font-size:14px; line-height:24px}
+    .cue-label{top:6px; max-width:116px; font-size:0; line-height:24px}
+    .cue-label::before{content:attr(data-cue-number); font-family:var(--mono); font-size:14px;
+      font-weight:700; color:var(--soft-ink)}
     .inline-save{display:inline-block; padding:4px 7px; border-color:var(--go); color:var(--go);
       background:var(--hover-bg); font-size:11px; letter-spacing:0}
     .imp textarea, .prompt-dialog textarea{font-size:16px}
@@ -369,13 +374,13 @@
       stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
   }
   @media (max-width:360px){
-    .bar::after{left:30px; right:6px}
+    .bar::after{left:22px; right:6px}
     .brand{font-size:24px}
     .clock{font-size:16px}
     .transport{gap:2px; padding-inline:2px}
     .transport .btn{width:22px}
     .transport .play{width:30px}
-    #focusBtn{left:calc(50% + 69px); width:42px}
+    #focusBtn{left:calc(50% + 76px); width:42px}
     #menuBtn{width:40px; min-width:40px}
   }
   @media (prefers-reduced-motion:reduce){
@@ -406,12 +411,12 @@
       <button class="btn nonlive desktop-action" id="editBtn">編集</button>
       <button class="btn fullscreen-fab" id="fullscreenBtn" type="button" title="フルスクリーンにする" aria-label="フルスクリーンにする"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5"/></svg></button>
       <button class="btn desktop-action" id="focusBtn" title="本番表示にする">本番</button>
-      <button class="btn ghost opt nonlive" id="menuBtn" type="button" aria-label="メニューを開く">☰</button>
+      <button class="btn ghost opt nonlive" id="menuBtn" type="button" aria-label="メニューを開く"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     </div>
   </div>
   <div class="cue-label-area">
     <div class="cue-labels" id="cueLabels"></div>
-    <button class="cue-label-toggle opt" id="cueLabelsToggle" type="button" aria-expanded="false" aria-controls="cueLabels" aria-label="見出しを表示">見出しを表示</button>
+    <button class="cue-label-toggle opt" id="cueLabelsToggle" type="button" aria-expanded="false" aria-controls="cueLabels" aria-label="見出しを表示"></button>
   </div>
   <div class="ribbon" id="ribbon" aria-label="台本のタイムライン">
     <div class="fill" id="fill"></div><div class="playhead" id="playhead" aria-hidden="true"></div>
@@ -860,6 +865,7 @@
         label.className = "cue-label" + (endAligned ? " end" : "");
         label.style.left = pct + "%";
         label.style.width = isEnd ? "116px" : room > 0.2 ? "calc(" + room + "% - 5px)" : "0px";
+        label.setAttribute("data-cue-number", String(i + 1));
         label.textContent = cueTitle(c.text, isEnd);
         labelBox.appendChild(label);
         var b = document.createElement("button");
@@ -1204,7 +1210,7 @@
     $("cueLabels").classList.toggle("open", open);
     this.setAttribute("aria-expanded", open ? "true" : "false");
     this.setAttribute("aria-label", open ? "見出しを隠す" : "見出しを表示");
-    this.textContent = open ? "閉じる" : "見出しを表示";
+    this.textContent = "";
     fitKey = ""; uniformKey = ""; render();
   });
   $("cueStartBtn").addEventListener("click", function(){
