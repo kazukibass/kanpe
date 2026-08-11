@@ -122,7 +122,8 @@
     padding:7px 8px; display:flex; gap:8px; align-items:center;
   }
   .ondeck .nav{
-    flex:none; font-size:15px; line-height:1; padding:12px 15px; color:var(--paper);
+    flex:none; font-size:13px; line-height:1; padding:12px 13px; color:var(--paper);
+    white-space:nowrap;
   }
   .ondeck .nav[disabled]{opacity:.3; cursor:default}
   .odmain{flex:1; min-width:0; display:flex; gap:8px; align-items:baseline}
@@ -217,13 +218,13 @@
     <div class="script" id="script"></div>
   </div>
   <div class="ondeck" id="ondeck">
-    <button class="btn nav" id="prev" title="前の項目へ戻る" aria-label="前の項目へ戻る">◀</button>
+    <button class="btn nav" id="prev" title="前の項目へ戻る" aria-label="前の項目へ戻る">◀ 前へ</button>
     <div class="odmain">
       <span class="lbl">NEXT</span>
       <span class="txt" id="nextTxt"></span>
     </div>
     <span class="cd" id="countdown"></span>
-    <button class="btn nav" id="next" title="次の項目へ進む" aria-label="次の項目へ進む">▶</button>
+    <button class="btn nav" id="next" title="次の項目へ進む" aria-label="次の項目へ進む">次へ ▶</button>
   </div>
 </main>
 
@@ -338,7 +339,6 @@
     $("toggle").textContent = "一時停止";
     $("clock").classList.add("running");
     requestWake();
-    setFocus(true);
   }
   function pause(){
     if(!running) return;
@@ -346,7 +346,6 @@
     $("toggle").textContent = "再開";
     $("clock").classList.remove("running");
     releaseWake();
-    setFocus(false);
   }
   function seek(sec){
     offset = Math.max(0, sec);
