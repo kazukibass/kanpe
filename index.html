@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>カンペ — 時間で切り替わる台本表示</title>
+<style>
+  :root{
+    --stage:#101319;
+    --panel:#181C24;
+    --line:#2A303C;
+    --paper:#F2EEE4;
+    --paper-ink:#191C22;
+    --muted:#8992A4;
+    --go:#3ECF8E;
+    --standby:#E2483D;
+    --scale:1;
+    --gothic: "Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
+    --mincho: "Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","Shippori Mincho",serif;
+    --mono: ui-monospace,"SF Mono","Roboto Mono","DejaVu Sans Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--stage); color:var(--paper);
+    font-family:var(--gothic);
+    -webkit-text-size-adjust:100%;
+    display:flex; flex-direction:column;
+    padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+  }
+  button{font-family:inherit; cursor:pointer}
+  button:focus-visible, input:focus-visible, textarea:focus-visible{
+    outline:2px solid var(--go); outline-offset:2px;
+  }
+
+  /* ---------- 上部バー ---------- */
+  header{
+    flex:none; border-bottom:1px solid var(--line); background:var(--panel);
+  }
+  .bar{
+    display:flex; align-items:center; gap:12px;
+    padding:10px 14px;
+  }
+  .clock{
+    font-family:var(--mono); font-size:30px; font-weight:600;
+    letter-spacing:.02em; font-variant-numeric:tabular-nums;
+    line-height:1;
+  }
+  .clock.running{color:var(--go)}
+  .ctrls{display:flex; gap:6px; margin-left:auto; flex-wrap:wrap; justify-content:flex-end}
+  .btn{
+    background:transparent; color:var(--paper); border:1px solid var(--line);
+    border-radius:3px; padding:7px 11px; font-size:13px; line-height:1;
+  }
+  .btn:hover{border-color:#3C4557}
+  .btn.primary{background:var(--go); border-color:var(--go); color:#0B1F17; font-weight:700}
+  .btn.ghost{color:var(--muted); border-color:transparent; padding:7px 8px}
+  .btn.ghost:hover{color:var(--paper)}
+
+  /* ---------- タイムライン ---------- */
+  .ribbon{
+    position:relative; height:30px; background:var(--panel);
+    border-top:1px solid var(--line); cursor:pointer; overflow:hidden;
+  }
+  .ribbon .fill{
+    position:absolute; inset:0 auto 0 0; width:0;
+    background:rgba(62,207,142,.10); border-right:1px solid var(--go);
+  }
+  .tick{
+    position:absolute; top:0; bottom:0; width:20px; margin-left:-10px;
+    display:flex; align-items:center; justify-content:center;
+    background:none; border:0; padding:0;
+  }
+  .tick i{
+    display:block; width:2px; height:9px; background:#4A5468; border-radius:1px;
+    transition:height .2s, background .2s;
+  }
+  .tick.done i{background:#2E6B52}
+  .tick.now i{background:var(--go); height:17px; box-shadow:0 0 8px rgba(62,207,142,.7)}
+  .tick.soon i{background:var(--standby); height:14px; animation:blink 1s steps(2,end) infinite}
+  @keyframes blink{50%{opacity:.25}}
+
+  /* ---------- 表示画面 ---------- */
+  main{flex:1; min-height:0; display:flex; flex-direction:column; padding:14px; gap:10px}
+  .card{
+    flex:1; min-height:0; background:var(--paper); color:var(--paper-ink);
+    border-radius:5px; padding:22px 24px; overflow-y:auto;
+    display:flex; flex-direction:column;
+    box-shadow:0 14px 34px rgba(0,0,0,.45);
+  }
+  .eyebrow{
+    flex:none; display:flex; align-items:baseline; gap:10px; margin-bottom:14px;
+    padding-bottom:10px; border-bottom:1px solid rgba(25,28,34,.16);
+    font-size:12px; color:#6A6F7B; letter-spacing:.08em;
+  }
+  .eyebrow .at{font-family:var(--mono); font-size:14px; color:var(--paper-ink); font-weight:600}
+  .eyebrow .elapsed{margin-left:auto; font-family:var(--mono)}
+  .script{
+    font-family:var(--mincho);
+    font-size:calc(30px * var(--scale));
+    line-height:1.62; white-space:pre-wrap; word-break:break-word;
+    font-feature-settings:"palt";
+  }
+  .card.waiting{background:#1C2029; color:var(--muted); box-shadow:none; border:1px dashed var(--line);
+    align-items:center; justify-content:center; text-align:center; font-size:15px; line-height:1.9}
+  .card.waiting .big{font-family:var(--mono); font-size:34px; color:var(--paper); display:block; margin-bottom:8px}
+
+  .ondeck{
+    flex:none; border:1px solid var(--line); border-radius:5px; background:var(--panel);
+    padding:11px 14px; display:flex; gap:12px; align-items:flex-start;
+  }
+  .ondeck .lbl{
+    font-size:11px; color:var(--muted); letter-spacing:.1em; flex:none; padding-top:2px;
+  }
+  .ondeck .txt{
+    font-size:14px; color:#B9C0CE; line-height:1.5; flex:1;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .ondeck .cd{
+    font-family:var(--mono); font-size:19px; font-weight:600; flex:none; color:var(--paper);
+    font-variant-numeric:tabular-nums;
+  }
+  .ondeck.soon{border-color:var(--standby)}
+  .ondeck.soon .cd{color:var(--standby)}
+
+  /* ---------- 編集画面 ---------- */
+  .edit{flex:1; min-height:0; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px}
+  .note{font-size:12px; color:var(--muted); line-height:1.7}
+  .row{
+    border:1px solid var(--line); border-radius:5px; background:var(--panel); padding:10px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .row .top{display:flex; align-items:center; gap:8px}
+  .row .top label{font-size:11px; color:var(--muted); letter-spacing:.06em}
+  input[type=text]{
+    font-family:var(--mono); font-size:16px; width:6.5em; padding:7px 9px;
+    background:var(--stage); color:var(--paper); border:1px solid var(--line); border-radius:3px;
+  }
+  textarea{
+    font-family:var(--mincho); font-size:16px; line-height:1.7; width:100%;
+    min-height:88px; padding:10px; resize:vertical;
+    background:var(--stage); color:var(--paper); border:1px solid var(--line); border-radius:3px;
+  }
+  .row .top .sp{margin-left:auto}
+  .empty{
+    border:1px dashed var(--line); border-radius:5px; padding:26px 18px; text-align:center;
+    color:var(--muted); font-size:14px; line-height:1.9;
+  }
+  .banner{
+    background:#2A1D1B; border:1px solid var(--standby); color:#F0C6BF;
+    font-size:12px; line-height:1.6; padding:9px 12px; border-radius:4px;
+  }
+  .imp{
+    border:1px solid var(--line); border-radius:5px; background:var(--panel); padding:11px;
+  }
+  .imp summary{
+    font-size:13px; color:var(--paper); cursor:pointer; list-style:none; padding:2px 0;
+  }
+  .imp summary::-webkit-details-marker{display:none}
+  .imp summary::before{content:"＋ "; color:var(--muted)}
+  .imp[open] summary::before{content:"− "}
+  .imp[open] summary{margin-bottom:9px; padding-bottom:9px; border-bottom:1px solid var(--line)}
+  .imp > *:not(summary){margin-top:9px}
+  .imp textarea{font-family:var(--gothic); font-size:14px; min-height:120px}
+  .imp code{font-family:var(--mono); font-size:12px; color:#B9C0CE}
+  .msg{font-size:12px; line-height:1.7; min-height:1em}
+  .msg.ok{color:var(--go)}
+  .msg.ng{color:var(--standby)}
+  @media (max-width:520px){
+    .clock{font-size:25px}
+    .bar{gap:8px; padding:9px 11px}
+    main{padding:10px; gap:8px}
+    .card{padding:16px 17px}
+    .script{font-size:calc(25px * var(--scale))}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none !important; transition:none !important}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <div class="clock" id="clock">00:00</div>
+    <div class="ctrls" id="ctrls">
+      <button class="btn ghost" id="prev" title="前の項目へ">◀</button>
+      <button class="btn ghost" id="next" title="次の項目へ">▶</button>
+      <button class="btn primary" id="toggle">開始</button>
+      <button class="btn" id="reset">戻す</button>
+      <button class="btn ghost" id="smaller" title="文字を小さく">A−</button>
+      <button class="btn ghost" id="bigger" title="文字を大きく">A+</button>
+      <button class="btn" id="editBtn">編集</button>
+    </div>
+  </div>
+  <div class="ribbon" id="ribbon"><div class="fill" id="fill"></div></div>
+</header>
+
+<main id="view">
+  <div class="card" id="card">
+    <div class="eyebrow" id="eyebrow"></div>
+    <div class="script" id="script"></div>
+  </div>
+  <div class="ondeck" id="ondeck">
+    <span class="lbl">NEXT</span>
+    <span class="txt" id="nextTxt"></span>
+    <span class="cd" id="countdown"></span>
+  </div>
+</main>
+
+<section class="edit" id="editView" hidden>
+  <div class="banner" id="storeWarn" hidden>
+    このプレビューでは保存が使えません。ファイルをダウンロードして開くか、公開したURLで開くと、内容が端末に残ります。
+  </div>
+  <p class="note">
+    開始からの経過時間で切り替わります。時間は <b>分:秒</b>（例 <code>3:30</code>）か <b>分</b> だけでも入力できます。<br>
+    台本は自分の端末にだけ保存されます。ほかの人には見えません。
+  </p>
+  <div id="rows"></div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap">
+    <button class="btn primary" id="add">項目を追加</button>
+    <button class="btn" id="exportBtn">書き出し</button>
+    <button class="btn ghost" id="clearAll">全部消す</button>
+  </div>
+
+  <details class="imp" id="impPanel">
+    <summary>台本を取り込む</summary>
+    <p class="note">
+      JSONでも、<code>3:30　講師紹介</code> のように時間と内容が並んだ行でも読めます。<br>
+      時間のない行は直前の項目の続きとして扱います。読めなかった行は飛ばして、読めた分だけ下の一覧に入ります。
+    </p>
+    <textarea id="impText" placeholder="0:00	開会のあいさつ
+3:30	講師紹介
+・経歴
+・今日のねらい"></textarea>
+    <div style="display:flex; gap:8px; flex-wrap:wrap">
+      <button class="btn primary" id="impAdd">今の台本に追加</button>
+      <button class="btn" id="impReplace">全部を置き換え</button>
+      <button class="btn" id="importBtn">ファイルから読む</button>
+      <input type="file" id="file" accept=".json,.txt,.md,text/plain,application/json" hidden>
+    </div>
+    <div class="msg" id="impMsg"></div>
+  </details>
+</section>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- 保存（使えない環境ではメモリに退避） ---------- */
+  var mem = {}, canStore = true;
+  try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); }
+  catch(e){ canStore = false; }
+  var KEY = "kanpe.v1";
+  function save(){
+    var data = JSON.stringify({cues:cues, scale:scale});
+    if(canStore){ try{ localStorage.setItem(KEY,data); return; }catch(e){ canStore=false; } }
+    mem[KEY] = data;
+  }
+  function load(){
+    var raw = null;
+    if(canStore){ try{ raw = localStorage.getItem(KEY); }catch(e){} }
+    if(raw==null) raw = mem[KEY];
+    if(!raw) return null;
+    try{ return JSON.parse(raw); }catch(e){ return null; }
+  }
+
+  /* ---------- 状態 ---------- */
+  var cues = [];            // {at:秒, text:文字列}
+  var scale = 1;
+  var running = false, startedAt = 0, offset = 0;
+  var wakeLock = null;
+
+  var saved = load();
+  if(saved){ cues = saved.cues || []; scale = saved.scale || 1; }
+  document.documentElement.style.setProperty("--scale", scale);
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  /* ---------- 時間 ---------- */
+  function elapsed(){ return running ? (Date.now()-startedAt)/1000 + offset : offset; }
+  function fmt(s){
+    s = Math.max(0, Math.floor(s));
+    var m = Math.floor(s/60), ss = s%60;
+    return (m<10?"0":"")+m+":"+(ss<10?"0":"")+ss;
+  }
+  function normalize(str){
+    return String(str==null?"":str)
+      .replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0)-0xFEE0); })
+      .replace(/[：]/g, ":").replace(/[　]/g, " ").replace(/\r\n?/g, "\n");
+  }
+  // 読めたら秒数、読めなければ null
+  function toSec(v){
+    if(typeof v === "number" && isFinite(v)) return Math.max(0, Math.round(v));
+    var s = normalize(v).trim();
+    if(!s) return null;
+    var m;
+    if((m = s.match(/^(\d{1,3}):(\d{1,2}):(\d{1,2})$/)))
+      return (+m[1])*3600 + (+m[2])*60 + (+m[3]);
+    if((m = s.match(/^(\d{1,3}):(\d{1,2})$/)))
+      return (+m[1])*60 + (+m[2]);
+    if((m = s.match(/^(\d{1,3})\s*分(?:\s*(\d{1,2})\s*秒)?$/)))
+      return (+m[1])*60 + (+(m[2]||0));
+    if((m = s.match(/^(\d{1,4})\s*秒$/))) return +m[1];
+    if((m = s.match(/^(\d{1,3})$/))) return (+m[1])*60;  // 数字だけなら「分」
+    return null;
+  }
+  function parseTime(str){ var v = toSec(str); return v==null ? 0 : v; }
+  function sorted(){ return cues.slice().sort(function(a,b){ return a.at-b.at; }); }
+  function total(){
+    var s = sorted();
+    return s.length ? Math.max(s[s.length-1].at + 300, 300) : 600;
+  }
+
+  /* ---------- タイマー操作 ---------- */
+  function start(){
+    if(running) return;
+    startedAt = Date.now(); running = true;
+    $("toggle").textContent = "一時停止";
+    $("clock").classList.add("running");
+    requestWake();
+  }
+  function pause(){
+    if(!running) return;
+    offset = elapsed(); running = false;
+    $("toggle").textContent = "再開";
+    $("clock").classList.remove("running");
+    releaseWake();
+  }
+  function seek(sec){
+    offset = Math.max(0, sec);
+    if(running) startedAt = Date.now();
+    render();
+  }
+  function requestWake(){
+    if(!("wakeLock" in navigator)) return;
+    navigator.wakeLock.request("screen").then(function(l){ wakeLock = l; }).catch(function(){});
+  }
+  function releaseWake(){
+    if(wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock = null; }
+  }
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState==="visible" && running) requestWake();
+  });
+
+  /* ---------- 表示 ---------- */
+  var lastTicks = "";
+  function render(){
+    var e = elapsed(), s = sorted(), T = total();
+    $("clock").textContent = fmt(e);
+
+    // タイムライン
+    $("fill").style.width = Math.min(100, e/T*100) + "%";
+    var idx = -1;
+    for(var i=0;i<s.length;i++){ if(s[i].at <= e) idx = i; }
+    var nxt = s[idx+1];
+    var sig = s.map(function(c){return c.at;}).join(",") + "|" + T;
+    if(sig !== lastTicks){
+      lastTicks = sig;
+      var rb = $("ribbon");
+      Array.prototype.slice.call(rb.querySelectorAll(".tick")).forEach(function(n){ n.remove(); });
+      s.forEach(function(c, i){
+        var b = document.createElement("button");
+        b.className = "tick"; b.type = "button";
+        b.style.left = Math.min(100, c.at/T*100) + "%";
+        b.title = fmt(c.at);
+        b.setAttribute("aria-label", fmt(c.at) + "へ移動");
+        b.appendChild(document.createElement("i"));
+        b.addEventListener("click", function(ev){ ev.stopPropagation(); seek(c.at); });
+        rb.appendChild(b);
+      });
+    }
+    var ticks = $("ribbon").querySelectorAll(".tick");
+    for(var k=0;k<ticks.length;k++){
+      ticks[k].className = "tick" + (k<idx ? " done" : k===idx ? " now" : "");
+    }
+    if(nxt && nxt.at-e <= 30 && ticks[idx+1]) ticks[idx+1].className = "tick soon";
+
+    // カンペ本体
+    var card = $("card");
+    if(idx < 0){
+      card.className = "card waiting";
+      card.innerHTML = "";
+      var w = document.createElement("div");
+      if(s.length===0){
+        w.innerHTML = "<span class='big'>まだ台本がありません</span>「編集」から項目を追加してください。";
+      }else{
+        w.innerHTML = "<span class='big'>"+fmt(s[0].at-e)+"</span>最初の項目まで";
+      }
+      card.appendChild(w);
+    }else{
+      var cur = s[idx];
+      if(card.className !== "card"){
+        card.className = "card";
+        card.innerHTML = '<div class="eyebrow" id="eyebrow"></div><div class="script" id="script"></div>';
+      }
+      $("eyebrow").innerHTML =
+        '<span class="at">'+fmt(cur.at)+'</span><span>'+(idx+1)+' / '+s.length+'</span>'+
+        '<span class="elapsed">この項目 '+fmt(e-cur.at)+'</span>';
+      $("script").textContent = cur.text || "（本文なし）";
+    }
+
+    // NEXT
+    var od = $("ondeck");
+    if(nxt){
+      od.hidden = false;
+      var left = nxt.at - e;
+      $("nextTxt").textContent = (nxt.text || "（本文なし）").replace(/\s+/g," ").slice(0,90);
+      $("countdown").textContent = fmt(left);
+      od.className = "ondeck" + (left<=30 ? " soon" : "");
+    }else{
+      od.hidden = true;
+    }
+  }
+  setInterval(function(){ if(!$("editView").hidden) return; render(); }, 250);
+
+  /* ---------- 編集 ---------- */
+  function drawRows(){
+    var box = $("rows"); box.innerHTML = "";
+    $("storeWarn").hidden = canStore;
+    if(cues.length===0){
+      var em = document.createElement("div");
+      em.className = "empty";
+      em.textContent = "項目がありません。「項目を追加」から、出したい時間と読む内容を入れてください。";
+      box.appendChild(em);
+      return;
+    }
+    cues.forEach(function(c, i){
+      var row = document.createElement("div"); row.className = "row";
+
+      var top = document.createElement("div"); top.className = "top";
+      var lab = document.createElement("label"); lab.textContent = "開始から";
+      var t = document.createElement("input");
+      t.type = "text"; t.value = fmt(c.at); t.inputMode = "text";
+      t.setAttribute("aria-label", (i+1)+"番目の表示時間");
+      t.addEventListener("change", function(){ c.at = parseTime(t.value); t.value = fmt(c.at); save(); drawRows(); });
+      var sp = document.createElement("span"); sp.className = "sp";
+      var del = document.createElement("button");
+      del.className = "btn ghost"; del.textContent = "削除";
+      del.addEventListener("click", function(){ cues.splice(i,1); save(); drawRows(); });
+      top.appendChild(lab); top.appendChild(t); top.appendChild(sp); top.appendChild(del);
+
+      var ta = document.createElement("textarea");
+      ta.value = c.text || "";
+      ta.placeholder = "読み上げる内容、または箇条書きのメモ";
+      ta.setAttribute("aria-label", (i+1)+"番目の内容");
+      ta.addEventListener("input", function(){ c.text = ta.value; save(); });
+
+      row.appendChild(top); row.appendChild(ta);
+      box.appendChild(row);
+    });
+  }
+
+  function setMode(editing){
+    $("editView").hidden = !editing;
+    $("view").hidden = editing;
+    $("editBtn").textContent = editing ? "表示へ戻る" : "編集";
+    if(editing){ drawRows(); } else { cues = sorted(); lastTicks = ""; render(); }
+  }
+
+  /* ---------- 操作 ---------- */
+  $("toggle").addEventListener("click", function(){ running ? pause() : start(); });
+  $("reset").addEventListener("click", function(){
+    if(elapsed() > 5 && !confirm("経過時間を 00:00 に戻します。よろしいですか？")) return;
+    running = false; offset = 0;
+    $("toggle").textContent = "開始";
+    $("clock").classList.remove("running");
+    releaseWake(); render();
+  });
+  $("prev").addEventListener("click", function(){
+    var s = sorted(), e = elapsed(), target = 0;
+    for(var i=0;i<s.length;i++){ if(s[i].at < e-1.5) target = s[i].at; }
+    seek(target);
+  });
+  $("next").addEventListener("click", function(){
+    var s = sorted(), e = elapsed();
+    for(var i=0;i<s.length;i++){ if(s[i].at > e){ seek(s[i].at); return; } }
+  });
+  $("bigger").addEventListener("click", function(){ setScale(scale+0.15); });
+  $("smaller").addEventListener("click", function(){ setScale(scale-0.15); });
+  function setScale(v){
+    scale = Math.min(2.6, Math.max(0.6, Math.round(v*100)/100));
+    document.documentElement.style.setProperty("--scale", scale); save();
+  }
+  $("editBtn").addEventListener("click", function(){ setMode($("editView").hidden); });
+  $("ribbon").addEventListener("click", function(ev){
+    var r = this.getBoundingClientRect();
+    seek((ev.clientX - r.left)/r.width * total());
+  });
+  $("add").addEventListener("click", function(){
+    var last = cues.length ? Math.max.apply(null, cues.map(function(c){return c.at;})) : -60;
+    cues.push({at:last+60, text:""}); save(); drawRows();
+    var tas = $("rows").querySelectorAll("textarea");
+    if(tas.length) tas[tas.length-1].focus();
+  });
+  $("clearAll").addEventListener("click", function(){
+    if(!confirm("台本をすべて消します。元に戻せません。よろしいですか？")) return;
+    cues = []; save(); drawRows();
+  });
+  $("exportBtn").addEventListener("click", function(){
+    var blob = new Blob([JSON.stringify({cues:sorted()}, null, 2)], {type:"application/json"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "kanpe.json"; a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  });
+  /* ---------- 取り込み（崩れていても読めた分だけ拾う） ---------- */
+  var AT_KEYS   = ["at","time","start","sec","seconds","offset","時間","開始","経過"];
+  var TEXT_KEYS = ["text","content","body","script","note","memo","title","内容","台本","本文","メモ"];
+
+  function fromObject(o){
+    if(!o || typeof o !== "object") return null;
+    var at = null, text = "";
+    for(var i=0;i<AT_KEYS.length;i++){
+      if(o[AT_KEYS[i]] !== undefined){ at = toSec(o[AT_KEYS[i]]); if(at!=null) break; }
+    }
+    for(var j=0;j<TEXT_KEYS.length;j++){
+      if(o[TEXT_KEYS[j]] !== undefined && String(o[TEXT_KEYS[j]]).trim()){
+        text = String(o[TEXT_KEYS[j]]); break;
+      }
+    }
+    if(at==null) return null;
+    return {at:at, text:normalize(text).trim()};
+  }
+
+  function tryJSON(raw){
+    var txt = raw.replace(/^\s*```[a-zA-Z]*\s*/,"").replace(/```\s*$/,"").trim();
+    var cands = [txt], a = txt.indexOf("["), b = txt.lastIndexOf("]");
+    if(a>=0 && b>a) cands.push(txt.slice(a,b+1));
+    a = txt.indexOf("{"); b = txt.lastIndexOf("}");
+    if(a>=0 && b>a) cands.push(txt.slice(a,b+1));
+    for(var i=0;i<cands.length;i++){
+      var d;
+      try{ d = JSON.parse(cands[i]); }catch(e){ continue; }
+      var arr = Array.isArray(d) ? d : (d.cues || d.items || d.rows || d.script);
+      if(!Array.isArray(arr)) continue;
+      var out = [], skipped = 0;
+      arr.forEach(function(o){ var c = fromObject(o); c ? out.push(c) : skipped++; });
+      if(out.length) return {cues:out, skipped:skipped};
+    }
+    return null;
+  }
+
+  // 行頭の時間表記。直後が区切りか行末のときだけ時間とみなす
+  var LINE_RE = /^\s*[-*・>＞\[(【]?\s*(\d{1,3}(?::\d{1,2}){1,2}|\d{1,3}\s*分(?:\s*\d{1,2}\s*秒)?)(?:\s*[\])】｜|,、\-–—\/／]+\s*|\s*:(?!\d)\s*|\s+|$)([\s\S]*)$/;
+
+  function tryLines(raw){
+    var lines = normalize(raw).split("\n");
+    var out = [], skipped = 0, merged = 0, cur = null;
+    lines.forEach(function(line){
+      var m = line.match(LINE_RE), at = m ? toSec(m[1]) : null;
+      if(at != null){
+        cur = {at:at, text:(m[2]||"").trim()};
+        out.push(cur);
+      }else if(cur){
+        if(line.trim()==="" ){ cur.text += "\n"; }
+        else { cur.text += (cur.text ? "\n" : "") + line.trim(); merged++; }
+      }else if(line.trim()!==""){
+        skipped++;
+      }
+    });
+    out.forEach(function(c){ c.text = c.text.replace(/\n{3,}/g,"\n\n").trim(); });
+    return out.length ? {cues:out, skipped:skipped, merged:merged} : null;
+  }
+
+  function ingest(raw, replace){
+    var msg = $("impMsg");
+    if(!raw || !raw.trim()){
+      msg.className = "msg ng"; msg.textContent = "取り込む内容がありません。"; return;
+    }
+    var r = tryJSON(raw) || tryLines(raw);
+    if(!r){
+      msg.className = "msg ng";
+      msg.textContent = "時間の書かれた行が見つかりませんでした。各項目の行頭を 3:30 のような形にして、もう一度お試しください。";
+      return;
+    }
+    cues = replace ? r.cues : cues.concat(r.cues);
+    cues = sorted(); save(); drawRows(); lastTicks = "";
+    msg = $("impMsg");
+    var parts = [r.cues.length + "件を" + (replace ? "置き換えました" : "追加しました")];
+    if(r.merged) parts.push(r.merged + "行は直前の項目に続けました");
+    if(r.skipped) parts.push(r.skipped + "行は時間が読めず飛ばしました");
+    msg.className = "msg ok";
+    msg.textContent = parts.join("／") + "。内容を確認して、必要なら直してください。";
+    $("impText").value = "";
+  }
+
+  $("impAdd").addEventListener("click", function(){ ingest($("impText").value, false); });
+  $("impReplace").addEventListener("click", function(){
+    if(cues.length && !confirm("今の台本をすべて置き換えます。よろしいですか？")) return;
+    ingest($("impText").value, true);
+  });
+  $("importBtn").addEventListener("click", function(){ $("file").click(); });
+  $("file").addEventListener("change", function(){
+    var f = this.files[0]; if(!f) return;
+    var r = new FileReader();
+    r.onload = function(){ $("impText").value = String(r.result); ingest(String(r.result), false); };
+    r.readAsText(f); this.value = "";
+  });
+  document.addEventListener("keydown", function(ev){
+    var t = ev.target.tagName;
+    if(t==="INPUT" || t==="TEXTAREA") return;
+    if(ev.code==="Space"){ ev.preventDefault(); running ? pause() : start(); }
+    else if(ev.key==="ArrowRight"){ $("next").click(); }
+    else if(ev.key==="ArrowLeft"){ $("prev").click(); }
+  });
+
+  setMode(cues.length===0);
+  render();
+})();
+</script>
+</body>
+</html>
