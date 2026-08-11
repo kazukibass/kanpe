@@ -20,6 +20,7 @@
     --mono: ui-monospace,"SF Mono","Roboto Mono","DejaVu Sans Mono",monospace;
   }
   *{box-sizing:border-box}
+  [hidden]{display:none !important}
   html,body{height:100%}
   body{
     margin:0; background:var(--stage); color:var(--paper);
@@ -118,14 +119,19 @@
 
   .ondeck{
     flex:none; border:1px solid var(--line); border-radius:5px; background:var(--panel);
-    padding:11px 14px; display:flex; gap:12px; align-items:flex-start;
+    padding:7px 8px; display:flex; gap:8px; align-items:center;
   }
+  .ondeck .nav{
+    flex:none; font-size:15px; line-height:1; padding:12px 15px; color:var(--paper);
+  }
+  .ondeck .nav[disabled]{opacity:.3; cursor:default}
+  .odmain{flex:1; min-width:0; display:flex; gap:8px; align-items:baseline}
   .ondeck .lbl{
-    font-size:11px; color:var(--muted); letter-spacing:.1em; flex:none; padding-top:2px;
+    font-size:11px; color:var(--muted); letter-spacing:.1em; flex:none;
   }
   .ondeck .txt{
-    font-size:14px; color:#B9C0CE; line-height:1.5; flex:1;
-    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    font-size:14px; color:#B9C0CE; line-height:1.4; flex:1; min-width:0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .ondeck .cd{
     font-family:var(--mono); font-size:19px; font-weight:600; flex:none; color:var(--paper);
@@ -194,8 +200,6 @@
   <div class="bar">
     <div class="clock" id="clock">00:00</div>
     <div class="ctrls" id="ctrls">
-      <button class="btn ghost opt" id="prev" title="前の項目へ">◀</button>
-      <button class="btn ghost opt" id="next" title="次の項目へ">▶</button>
       <button class="btn primary" id="toggle">開始</button>
       <button class="btn opt" id="reset">戻す</button>
       <button class="btn ghost opt" id="smaller" title="文字を小さく">A−</button>
@@ -213,9 +217,13 @@
     <div class="script" id="script"></div>
   </div>
   <div class="ondeck" id="ondeck">
-    <span class="lbl">NEXT</span>
-    <span class="txt" id="nextTxt"></span>
+    <button class="btn nav" id="prev" title="前の項目へ戻る" aria-label="前の項目へ戻る">◀</button>
+    <div class="odmain">
+      <span class="lbl">NEXT</span>
+      <span class="txt" id="nextTxt"></span>
+    </div>
     <span class="cd" id="countdown"></span>
+    <button class="btn nav" id="next" title="次の項目へ進む" aria-label="次の項目へ進む">▶</button>
   </div>
 </main>
 
@@ -457,14 +465,17 @@
     // NEXT
     var od = $("ondeck");
     if(nxt){
-      od.hidden = false;
       var left = nxt.at - e;
       $("nextTxt").textContent = (nxt.text || "（本文なし）").replace(/\s+/g," ").slice(0,90);
       $("countdown").textContent = fmt(left);
       od.className = "ondeck" + (left<=30 ? " soon" : "");
     }else{
-      od.hidden = true;
+      $("nextTxt").textContent = s.length ? "これが最後の項目です" : "";
+      $("countdown").textContent = "";
+      od.className = "ondeck";
     }
+    $("next").disabled = !nxt;
+    $("prev").disabled = idx < 0;
   }
   setInterval(function(){ if(!$("editView").hidden) return; render(); }, 250);
 
