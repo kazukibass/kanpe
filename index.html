@@ -1622,7 +1622,12 @@
   $("file").addEventListener("change", function(){
     var f = this.files[0]; if(!f) return;
     var r = new FileReader();
-    r.onload = function(){ $("impText").value = String(r.result); ingest(String(r.result), false); };
+    r.onload = function(){
+      $("impText").value = String(r.result);
+      var msg = $("impMsg");
+      msg.className = "msg";
+      msg.textContent = "「" + f.name + "」を読み込みました。「今の台本に追加」か「全部を置き換え」を選んでください。";
+    };
     r.readAsText(f); this.value = "";
   });
   document.addEventListener("keydown", function(ev){
