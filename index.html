@@ -641,6 +641,7 @@
   var scriptTouchStart = null;
   var lastOnDeckTap = {at:0, x:0, y:0};
   var dragCue = null;
+  var altAdjustCue = null, altAdjustTimer = null;
 
   var saved = load();
   if(saved){ cues = saved.cues || []; scale = saved.scale || 1; title = saved.title || ""; theme = saved.theme === "light" ? "light" : "dark"; }
@@ -862,6 +863,7 @@
   }
   function seek(sec){
     if(inlineCue) finishInlineEdit(true);
+    altAdjustCue = null; clearTimeout(altAdjustTimer);
     offset = Math.max(0, sec);
     if(running) startedAt = Date.now();
     render();
@@ -1118,14 +1120,23 @@
   }
   // 表示モード中はどこにフォーカスがあっても、今表示している項目の開始時刻をAlt+矢印で調整できる
   // （最初と最後の項目は cueDragRange が対象外にするので一覧編集のみで変更される）
+  // 右へ動かすと再生位置(elapsed)を追い越して「前の項目」に判定が切り替わってしまうため、
+  // 続けて矢印キーを押している間は同じ項目をロックして調整し続ける
   function nudgeCurrentCue(delta){
-    var s = displayCues(), e = elapsed(), idx = -1;
-    for(var i=0;i<s.length;i++){ if(s[i].at <= e) idx = i; }
-    var cur = s[idx];
+    var s = displayCues();
+    var cur = (altAdjustCue && s.indexOf(altAdjustCue) >= 0) ? altAdjustCue : null;
+    if(!cur){
+      var e = elapsed(), idx = -1;
+      for(var i=0;i<s.length;i++){ if(s[i].at <= e) idx = i; }
+      cur = s[idx];
+    }
     if(!cur) return false;
     var range = cueDragRange(cur);
     if(!range) return false;
     cur.at = Math.max(range.min, Math.min(range.max, cur.at + delta));
+    altAdjustCue = cur;
+    clearTimeout(altAdjustTimer);
+    altAdjustTimer = setTimeout(function(){ altAdjustCue = null; }, 2000);
     save(); render();
     return true;
   }
