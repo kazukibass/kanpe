@@ -142,6 +142,7 @@
   .menu-sep{height:1px; margin:5px 7px; background:var(--line)}
   .menu-label{padding:5px 8px 2px; color:var(--muted); font-size:10px; letter-spacing:.06em}
   .mobile-nav-actions{display:none}
+  .mobile-mode-toggle{display:none}
 
   /* ---------- タイムライン ---------- */
   .cue-label-area{position:relative}
@@ -370,6 +371,15 @@
       min-height:34px; padding:0; border-color:var(--line); border-radius:5px;
       background:var(--panel); font-size:12px; transform:translateY(-50%)}
     .mobile-nav-actions{display:block}
+    .mobile-mode-toggle{
+      position:absolute; z-index:8; top:50%; right:-16px; transform:translateY(-50%);
+      display:grid; place-items:center; width:32px; height:32px; padding:0; border-radius:50%;
+      color:var(--go-strong); border-color:var(--go-strong); background:var(--hover-bg);
+      box-shadow:0 3px 12px rgba(0,0,0,.24);
+    }
+    .mobile-mode-toggle svg{width:16px; height:16px; fill:none; stroke:currentColor;
+      stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round}
+    html.kb-shell-active .bar > .brand{visibility:hidden; pointer-events:none}
     body.focus #focusBtn{display:block}
     .save-state{display:none}
     .ctrls{gap:4px; flex-wrap:nowrap}
@@ -445,6 +455,7 @@
         data-adopt=".bar"
         data-adopt-min="681"
         data-slim="mobile"
+        data-mobile-home="brand"
         data-theme-attr="data-theme"
         data-theme-dark="dark"></script>
 </head>
@@ -480,6 +491,10 @@
   </div>
   <div class="ribbon" id="ribbon" aria-label="台本のタイムライン">
     <div class="fill" id="fill"></div><div class="playhead" id="playhead" aria-hidden="true"></div>
+    <button class="btn mobile-mode-toggle nonlive" id="mobileModeBtn" type="button" aria-label="一覧を開く">
+      <svg id="mobileModeListIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h11M8 12h11M8 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>
+      <svg id="mobileModeDisplayIcon" viewBox="0 0 24 24" aria-hidden="true" hidden><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    </button>
   </div>
 </header>
 
@@ -1324,6 +1339,9 @@
     $("editBtn").textContent = editing ? "表示" : "編集";
     $("brandBtn").title = editing ? "表示モードへ戻る" : "一覧を開く";
     $("brandBtn").setAttribute("aria-label", $("brandBtn").title);
+    $("mobileModeBtn").setAttribute("aria-label", editing ? "表示モードへ戻る" : "一覧を開く");
+    $("mobileModeListIcon").toggleAttribute("hidden", editing);
+    $("mobileModeDisplayIcon").toggleAttribute("hidden", !editing);
     if(editing){
       setFocus(false); drawRows();
       if(focusIndex!=null && focusIndex>=0){
@@ -1346,6 +1364,13 @@
     start();
   });
   $("brandBtn").addEventListener("click", function(){
+    var wasInline = !!inlineCue;
+    if(wasInline) finishInlineEdit(true);
+    if($("editView").hidden) setMode(true, wasInline ? currentCueIndex() : null);
+    else setMode(false);
+  });
+  $("mobileModeBtn").addEventListener("click", function(ev){
+    ev.stopPropagation();
     var wasInline = !!inlineCue;
     if(wasInline) finishInlineEdit(true);
     if($("editView").hidden) setMode(true, wasInline ? currentCueIndex() : null);
