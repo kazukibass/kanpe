@@ -176,6 +176,8 @@ PDFはブラウザの印刷機能を使うため、日本語フォントの埋�
 
 外部ライブラリを使わずに生成しています。`.pptx` はZIPとXMLの組み合わせなので、ZIPの組み立てからOOXMLの各パートまでを `index.html` 内で作っています。圧縮率は不要なので、deflateの非圧縮ブロックだけで有効なdeflateストリームを組んでいます。
 
+Microsoft PowerPoint、LibreOffice Impress で開けることを確認しています。
+
 ---
 
 ## JSONの読み込み・書き出し
