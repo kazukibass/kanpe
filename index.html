@@ -1241,11 +1241,17 @@
   function pptxXfrm(b){
     return '<a:xfrm><a:off x="'+b.x+'" y="'+b.y+'"/><a:ext cx="'+b.cx+'" cy="'+b.cy+'"/></a:xfrm>';
   }
-  function pptxParas(lines){
+  // 継承に頼らず、スライド側で箇条書き記号と文字サイズまで指定する
+  function pptxParas(lines, opt){
+    opt = opt || {};
     var use = (lines || []).filter(function(x){ return String(x).trim(); });
-    if(!use.length) return '<a:p><a:endParaRPr lang="ja-JP"/></a:p>';
+    if(!use.length) return '<a:p><a:endParaRPr lang="ja-JP" sz="' + (opt.sz || 1800) + '"/></a:p>';
+    var pPr = opt.bullet
+      ? '<a:pPr marL="285750" indent="-285750"><a:buFont typeface="Arial"/><a:buChar char="\u2022"/></a:pPr>'
+      : '<a:pPr><a:buNone/></a:pPr>';
+    var rPr = '<a:rPr lang="ja-JP" sz="' + (opt.sz || 1800) + '"' + (opt.b ? ' b="1"' : '') + ' dirty="0"/>';
     return use.map(function(t){
-      return '<a:p><a:r><a:rPr lang="ja-JP" dirty="0"/><a:t>' + pptxEsc(t) + '</a:t></a:r></a:p>';
+      return '<a:p>' + pPr + '<a:r>' + rPr + '<a:t>' + pptxEsc(t) + '</a:t></a:r></a:p>';
     }).join("");
   }
   function pptxRels(list){
@@ -1310,16 +1316,21 @@
       '</p:spTree></p:cSld><p:clrMap ' + PPTX_CLRMAP + '/>' +
       '<p:notesStyle><a:lvl1pPr><a:defRPr sz="1200"/></a:lvl1pPr></p:notesStyle></p:notesMaster>';
   }
+  // 実PowerPointが出力するファイルと同じく、スライド側の図形にも座標を持たせる。
+  // レイアウト・マスターからの継承だけに頼ると、継承を解決しない実装で開けない。
   function pptxSlideXml(sl){
     return PPTX_HEAD + '<p:sld ' + PPTX_NS + '><p:cSld><p:spTree>' + PPTX_GRP +
-      pptxPlaceholder(2, "Title 1", '<p:ph type="title"/>', null, pptxParas([sl.title])) +
-      pptxPlaceholder(3, "Content Placeholder 2", '<p:ph type="body" idx="1"/>', null, pptxParas(sl.points)) +
+      pptxPlaceholder(2, "Title 1", '<p:ph type="title"/>', PPTX_TITLE_BOX,
+        pptxParas([sl.title], {sz:3200, b:true})) +
+      pptxPlaceholder(3, "Content Placeholder 2", '<p:ph type="body" idx="1"/>', PPTX_BODY_BOX,
+        pptxParas(sl.points, {sz:2000, bullet:true})) +
       '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
   }
   function pptxNotesXml(sl){
     return PPTX_HEAD + '<p:notes ' + PPTX_NS + '><p:cSld><p:spTree>' + PPTX_GRP +
-      pptxPlaceholder(2, "Notes Placeholder 1", '<p:ph type="body" idx="1"/>', null,
-        pptxParas(String(sl.notes||"").split("\n"))) +
+      pptxPlaceholder(2, "Notes Placeholder 1", '<p:ph type="body" idx="1"/>',
+        {x:685800, y:4400550, cx:5486400, cy:3600450},
+        pptxParas(String(sl.notes||"").split("\n"), {sz:1200})) +
       '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:notes>';
   }
   // slides: [{title, points:[], notes}]
