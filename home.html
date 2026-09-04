@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kanpe — 台本ライブラリ</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CjxyZWN0IHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgcng9IjE1IiBmaWxsPSIjMTAxMzE5Ii8+CjxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjIyIiBmaWxsPSIjM0VDRjhFIi8+CjxwYXRoIGQ9Ik0yNiAxOSBMMjYgNDUgTDQ3IDMyIFoiIGZpbGw9IiMwQjFGMTciLz4KPC9zdmc+Cg==">
+<style>
+  :root{
+    color-scheme:dark;
+    --stage:#101319;
+    --panel:#181C24;
+    --line:#2A303C;
+    --ui-ink:#F2EEE4;
+    --muted:#8992A4;
+    --soft-ink:#B9C0CE;
+    --card-shadow:0 14px 34px rgba(0,0,0,.45);
+    --danger-bg:#2A1D1B;
+    --danger-ink:#F0C6BF;
+    --hover-bg:rgba(62,207,142,.08);
+    --progress:rgba(62,207,142,.30);
+    --go:#3ECF8E;
+    --standby:#E2483D;
+    --gothic: "Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
+    --mono: ui-monospace,"SF Mono","Roboto Mono","DejaVu Sans Mono",monospace;
+  }
+  :root[data-theme="light"]{
+    color-scheme:light;
+    --stage:#F2F5F7;
+    --panel:#FFFFFF;
+    --line:#D5DBE3;
+    --ui-ink:#20242B;
+    --muted:#687385;
+    --soft-ink:#566274;
+    --card-shadow:0 14px 34px rgba(35,48,66,.13);
+    --danger-bg:#FFF3F0;
+    --danger-ink:#8B352E;
+    --hover-bg:rgba(22,138,93,.07);
+    --progress:rgba(22,138,93,.22);
+    --go:#168A5D;
+    --standby:#C94036;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--stage); color:var(--ui-ink); font-family:var(--gothic);
+    -webkit-text-size-adjust:100%;
+    display:flex; flex-direction:column;
+    padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+  }
+  button{font-family:inherit; cursor:pointer}
+  button:focus-visible, input:focus-visible{outline:2px solid var(--go); outline-offset:2px}
+
+  header{flex:none; border-bottom:1px solid var(--line); background:var(--panel)}
+  .bar{display:flex; align-items:center; gap:10px; padding:10px 14px}
+  .brand{
+    min-height:42px; padding:3px 5px; border:0; background:none; color:var(--ui-ink);
+    font-family:"Avenir Next","Segoe Script","Bradley Hand",cursive; font-size:30px;
+    font-style:italic; font-weight:800; letter-spacing:-.04em; line-height:1;
+  }
+  .kicker{font-size:11px; color:var(--muted); letter-spacing:.1em; margin-right:auto}
+  .btn{
+    background:transparent; color:var(--ui-ink); border:1px solid var(--line);
+    border-radius:3px; padding:7px 11px; font-size:13px; line-height:1; min-height:34px;
+  }
+  .btn:disabled{opacity:.35; cursor:default}
+  .btn.primary{background:var(--go); border-color:var(--go); color:#0B1F17; font-weight:700}
+  .btn.ghost{color:var(--muted); border-color:transparent; padding:7px 8px}
+  .btn.danger{color:var(--standby); border-color:var(--line)}
+  @media (hover:hover){
+    button.btn:hover{
+      border-color:var(--go); background:var(--hover-bg);
+      box-shadow:0 0 0 1px var(--progress),0 0 13px var(--progress);
+    }
+    button.btn.primary:hover{background:var(--go)}
+    button.btn:disabled:hover{border-color:var(--line); background:transparent; box-shadow:none}
+  }
+
+  main{flex:1; min-height:0; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px}
+  .notice{
+    border:1px solid var(--go); background:var(--hover-bg); color:var(--ui-ink);
+    font-size:12px; line-height:1.7; padding:9px 12px; border-radius:4px;
+  }
+  .notice.warn{border-color:var(--standby); background:var(--danger-bg); color:var(--danger-ink)}
+  .note{font-size:12px; color:var(--muted); line-height:1.7}
+
+  .card{
+    border:1px solid var(--line); border-radius:5px; background:var(--panel);
+    padding:12px; display:flex; flex-direction:column; gap:9px;
+  }
+  .card.current{border-color:var(--go)}
+  .card-head{display:flex; align-items:baseline; gap:9px; flex-wrap:wrap}
+  .card-title{font-size:16px; line-height:1.4; min-width:0; overflow-wrap:anywhere}
+  .badge{
+    flex:none; font-size:10px; letter-spacing:.06em; color:var(--go);
+    border:1px solid var(--go); border-radius:3px; padding:2px 6px;
+  }
+  .meta{display:flex; gap:12px; flex-wrap:wrap; font-size:11px; color:var(--muted)}
+  .meta .num{font-family:var(--mono); color:var(--soft-ink); font-variant-numeric:tabular-nums}
+  .card-actions{display:flex; gap:7px; flex-wrap:wrap}
+  .card-actions .sp{margin-left:auto}
+
+  .empty{
+    border:1px dashed var(--line); border-radius:5px; padding:30px 18px; text-align:center;
+    color:var(--muted); font-size:14px; line-height:1.9;
+  }
+  .empty-actions{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:14px}
+
+  dialog{
+    width:min(420px,calc(100% - 28px)); color:var(--ui-ink); background:var(--panel);
+    border:1px solid var(--line); border-radius:8px; padding:20px; box-shadow:var(--card-shadow);
+  }
+  dialog::backdrop{background:rgba(0,0,0,.55)}
+  dialog h2{font-size:17px; margin:0 0 12px}
+  dialog input[type=text]{
+    font-family:var(--gothic); font-size:16px; width:100%; padding:9px 10px;
+    background:var(--stage); color:var(--ui-ink); border:1px solid var(--line); border-radius:3px;
+  }
+  .dialog-actions{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap}
+  .dialog-actions .sp{margin-left:auto}
+
+  @media (max-width:560px){
+    .bar{padding:8px 10px; gap:7px}
+    .brand{font-size:26px}
+    .kicker{display:none}
+    main{padding:10px}
+    .card-actions .btn{flex:1 1 auto}
+    .card-actions .sp{margin-left:0}
+  }
+</style>
+<link rel="stylesheet" href="https://kazukibass.github.io/assets/shell.css">
+<script src="https://kazukibass.github.io/assets/shell.js"
+        data-tool="Kanpe"
+        data-kicker="SCRIPT LIBRARY"
+        data-adopt=".bar"
+        data-adopt-min="681"
+        data-slim="mobile"
+        data-mobile-home="brand"
+        data-theme-attr="data-theme"
+        data-theme-dark="dark"></script>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand">Kanpe</span>
+    <span class="kicker">台本ライブラリ</span>
+    <button class="btn primary" id="newBtn" type="button">新規作成</button>
+    <button class="btn" id="importBtn" type="button">読み込み</button>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+    <button class="btn ghost" id="themeBtn" type="button">☀</button>
+  </div>
+</header>
+
+<main>
+  <div class="notice" id="notice" hidden></div>
+  <div class="notice warn" id="storeWarn" hidden>
+    このブラウザでは保存が使えません。台本はこのタブを閉じるまでの一時保存になります。
+  </div>
+  <div id="list"></div>
+  <p class="note" id="footNote"></p>
+</main>
+
+<dialog id="renameDialog">
+  <h2 id="renameTitle">台本の名前</h2>
+  <input type="text" id="renameInput" placeholder="無題の台本" autocomplete="off">
+  <div class="dialog-actions">
+    <span class="sp"></span>
+    <button class="btn" id="renameCancel" type="button">やめる</button>
+    <button class="btn primary" id="renameOk" type="button">決定</button>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- 保存 ---------- */
+  var LIVE_KEY = "kanpe.v1";      // 一枚版が読み書きする「いま開いている1本」
+  var LIB_KEY  = "kanpe.v2";      // ホームが持つ台本コレクション
+  var mem = {}, canStore = true;
+  try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); }
+  catch(e){ canStore = false; }
+
+  function readKey(key){
+    var raw = null;
+    if(canStore){ try{ raw = localStorage.getItem(key); }catch(e){} }
+    if(raw == null) raw = mem[key];
+    if(!raw) return null;
+    try{ return JSON.parse(raw); }catch(e){ return null; }
+  }
+  function writeKey(key, value){
+    var raw = JSON.stringify(value);
+    if(canStore){ try{ localStorage.setItem(key, raw); }catch(e){ canStore = false; } }
+    mem[key] = raw;
+  }
+
+  /* ---------- ID と時刻 ---------- */
+  // trace-memo の envelope が要求する UUIDv7。先頭48bitがミリ秒なので生成順に並ぶ。
+  // Date.now() は32bitに収まらないため、ビットシフトではなく除算で取り出す。
+  function uuidv7(){
+    var ms = Date.now();
+    var b = new Uint8Array(16);
+    if(window.crypto && crypto.getRandomValues) crypto.getRandomValues(b);
+    else for(var i=0;i<16;i++) b[i] = Math.floor(Math.random()*256);
+    b[0] = Math.floor(ms / 1099511627776) & 0xFF;   // ms >> 40
+    b[1] = Math.floor(ms / 4294967296)    & 0xFF;   // ms >> 32
+    b[2] = Math.floor(ms / 16777216)      & 0xFF;   // ms >> 24
+    b[3] = Math.floor(ms / 65536)         & 0xFF;   // ms >> 16
+    b[4] = Math.floor(ms / 256)           & 0xFF;   // ms >> 8
+    b[5] = ms & 0xFF;
+    b[6] = 0x70 | (b[6] & 0x0F);                    // version 7
+    b[8] = 0x80 | (b[8] & 0x3F);                    // variant 10
+    var h = [];
+    for(var j=0;j<16;j++) h.push((b[j] + 0x100).toString(16).slice(1));
+    return h.slice(0,4).join("") + "-" + h.slice(4,6).join("") + "-" +
+           h.slice(6,8).join("") + "-" + h.slice(8,10).join("") + "-" + h.slice(10,16).join("");
+  }
+  function nowISO(){ return new Date().toISOString().replace(/\.\d+Z$/, "Z"); }
+
+  /* ---------- 状態 ---------- */
+  var DEFAULT_SETTINGS = {scale:1, theme:"dark", target:0, rate:300};
+  var lib = null;
+
+  function emptyLib(){
+    return {schemaVersion:"kanpe.v2", scripts:[], openId:null, settings:cloneSettings(DEFAULT_SETTINGS)};
+  }
+  function cloneSettings(s){
+    return {scale:s.scale, theme:s.theme, target:s.target, rate:s.rate};
+  }
+  function newScript(title, cues){
+    var t = nowISO();
+    return {id:uuidv7(), title:String(title||""), cues:Array.isArray(cues)?cues:[], createdAt:t, updatedAt:t};
+  }
+  function sameCues(a, b){
+    return JSON.stringify(a || []) === JSON.stringify(b || []);
+  }
+  function findScript(id){
+    for(var i=0;i<lib.scripts.length;i++) if(lib.scripts[i].id === id) return lib.scripts[i];
+    return null;
+  }
+  function save(){ writeKey(LIB_KEY, lib); }
+
+  /* ---------- 起動時の取り込み ---------- */
+  // 一枚版は kanpe.v1 だけを見て動く。ホームはそこへの書き戻しを取りこぼさない。
+  var noticeText = "";
+  function load(){
+    lib = readKey(LIB_KEY);
+    if(!lib || !Array.isArray(lib.scripts)){
+      lib = emptyLib();
+      var legacy = readKey(LIVE_KEY);
+      if(legacy && Array.isArray(legacy.cues) && legacy.cues.length){
+        var first = newScript(legacy.title, legacy.cues);
+        lib.scripts.push(first);
+        lib.openId = first.id;
+        lib.settings = {
+          scale: legacy.scale || DEFAULT_SETTINGS.scale,
+          theme: legacy.theme === "light" ? "light" : "dark",
+          target: legacy.target || 0,
+          rate: legacy.rate || DEFAULT_SETTINGS.rate
+        };
+        noticeText = "これまでカンペに入っていた台本を「" + label(first) + "」として取り込みました。";
+      }
+      save();
+      return;
+    }
+    lib.settings = lib.settings || cloneSettings(DEFAULT_SETTINGS);
+    adoptLive();
+  }
+
+  // 一枚版で編集された内容をコレクションへ戻す
+  function adoptLive(){
+    var live = readKey(LIVE_KEY);
+    if(!live || !Array.isArray(live.cues)) return;
+    lib.settings = {
+      scale: live.scale || lib.settings.scale,
+      theme: live.theme === "light" ? "light" : "dark",
+      target: typeof live.target === "number" ? live.target : lib.settings.target,
+      rate: typeof live.rate === "number" ? live.rate : lib.settings.rate
+    };
+    var open = lib.openId ? findScript(lib.openId) : null;
+    if(open){
+      if(!sameCues(open.cues, live.cues) || open.title !== String(live.title||"")){
+        open.cues = live.cues;
+        open.title = String(live.title||"");
+        open.updatedAt = nowISO();
+        noticeText = "「" + label(open) + "」に、カンペ側での編集を反映しました。";
+      }
+      save();
+      return;
+    }
+    // ホームを経由せずカンペを直接開いて編集した場合の受け皿
+    if(!live.cues.length) { save(); return; }
+    for(var i=0;i<lib.scripts.length;i++){
+      if(sameCues(lib.scripts[i].cues, live.cues)) { lib.openId = lib.scripts[i].id; save(); return; }
+    }
+    var added = newScript(live.title, live.cues);
+    lib.scripts.push(added);
+    lib.openId = added.id;
+    noticeText = "カンペ側にあった台本を「" + label(added) + "」として取り込みました。";
+    save();
+  }
+
+  /* ---------- 表示用 ---------- */
+  var $ = function(id){ return document.getElementById(id); };
+  function label(s){ return (s.title || "").trim() || "無題の台本"; }
+  function fmt(sec){
+    sec = Math.max(0, Math.floor(sec || 0));
+    var m = Math.floor(sec/60), ss = sec%60;
+    return (m<10?"0":"")+m+":"+(ss<10?"0":"")+ss;
+  }
+  function endAt(s){
+    if(!s.cues.length) return 0;
+    var max = 0;
+    s.cues.forEach(function(c){ if(typeof c.at === "number" && c.at > max) max = c.at; });
+    return max;
+  }
+  function fmtDate(iso){
+    var d = new Date(iso);
+    if(isNaN(d.getTime())) return "—";
+    var p = function(n){ return (n<10?"0":"")+n; };
+    return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+  function safeFileName(s){
+    var t = String(s||"").trim().replace(/[\\/:*?"<>|\x00-\x1F]/g, " ").replace(/\s+/g," ").trim();
+    return t ? t.slice(0,80) : "kanpe";
+  }
+  function applyTheme(){
+    var light = lib.settings.theme === "light";
+    document.documentElement.setAttribute("data-theme", lib.settings.theme);
+    $("themeBtn").textContent = light ? "☾" : "☀";
+    $("themeBtn").title = light ? "ダークモードに切り替え" : "ライトモードに切り替え";
+    $("themeBtn").setAttribute("aria-label", $("themeBtn").title);
+  }
+  function showNotice(text, isWarn){
+    var el = $("notice");
+    el.hidden = !text;
+    el.className = "notice" + (isWarn ? " warn" : "");
+    el.textContent = text || "";
+  }
+
+  /* ---------- 一覧 ---------- */
+  function render(){
+    applyTheme();
+    $("storeWarn").hidden = canStore;
+    var box = $("list");
+    box.innerHTML = "";
+    if(!lib.scripts.length){
+      var em = document.createElement("div");
+      em.className = "empty";
+      em.innerHTML = "<div>台本がありません。</div><div>新しく作るか、書き出したJSONを読み込んでください。</div>";
+      var acts = document.createElement("div");
+      acts.className = "empty-actions";
+      var a = document.createElement("button");
+      a.className = "btn primary"; a.type = "button"; a.textContent = "最初の台本を作る";
+      a.addEventListener("click", createScript);
+      var b = document.createElement("button");
+      b.className = "btn"; b.type = "button"; b.textContent = "JSONを読み込む";
+      b.addEventListener("click", function(){ $("file").click(); });
+      acts.appendChild(a); acts.appendChild(b);
+      em.appendChild(acts);
+      box.appendChild(em);
+      $("footNote").textContent = "";
+      return;
+    }
+
+    // 更新が新しい順
+    var list = lib.scripts.slice().sort(function(x,y){
+      return String(y.updatedAt).localeCompare(String(x.updatedAt));
+    });
+    list.forEach(function(s){
+      var card = document.createElement("div");
+      card.className = "card" + (s.id === lib.openId ? " current" : "");
+
+      var head = document.createElement("div"); head.className = "card-head";
+      var title = document.createElement("span"); title.className = "card-title"; title.textContent = label(s);
+      head.appendChild(title);
+      if(s.id === lib.openId){
+        var badge = document.createElement("span"); badge.className = "badge"; badge.textContent = "カンペに読込中";
+        head.appendChild(badge);
+      }
+
+      var meta = document.createElement("div"); meta.className = "meta";
+      addMeta(meta, "項目", String(s.cues.length));
+      addMeta(meta, "終点", fmt(endAt(s)));
+      addMeta(meta, "更新", fmtDate(s.updatedAt));
+
+      var acts = document.createElement("div"); acts.className = "card-actions";
+      acts.appendChild(mkBtn("開く", "primary", function(){ openScript(s); }));
+      acts.appendChild(mkBtn("名前", "", function(){ renameScript(s); }));
+      acts.appendChild(mkBtn("複製", "", function(){ duplicateScript(s); }));
+      acts.appendChild(mkBtn("書き出し", "", function(){ exportScript(s); }));
+      var sp = document.createElement("span"); sp.className = "sp"; acts.appendChild(sp);
+      acts.appendChild(mkBtn("削除", "danger", function(){ deleteScript(s); }));
+
+      card.appendChild(head); card.appendChild(meta); card.appendChild(acts);
+      box.appendChild(card);
+    });
+    $("footNote").textContent = lib.scripts.length + "件。台本はこの端末のブラウザにだけ保存されます。" +
+      "「開く」を押すとカンペ側へ渡し、戻ってきたときに編集内容を取り込みます。";
+  }
+  function addMeta(box, key, value){
+    var seg = document.createElement("span");
+    var k = document.createElement("span"); k.textContent = key + " ";
+    var v = document.createElement("span"); v.className = "num"; v.textContent = value;
+    seg.appendChild(k); seg.appendChild(v);
+    box.appendChild(seg);
+  }
+  function mkBtn(text, cls, fn){
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "btn" + (cls ? " " + cls : ""); b.textContent = text;
+    b.addEventListener("click", fn);
+    return b;
+  }
+
+  /* ---------- 操作 ---------- */
+  function openScript(s){
+    // 一枚版が読む形へ書き出す。一枚版はホームの存在を知らなくてよい。
+    writeKey(LIVE_KEY, {
+      cues: s.cues, title: s.title,
+      scale: lib.settings.scale, theme: lib.settings.theme,
+      target: lib.settings.target, rate: lib.settings.rate
+    });
+    lib.openId = s.id;
+    save();
+    location.href = "index.html";
+  }
+  function createScript(){
+    var s = newScript("", []);
+    lib.scripts.push(s); save();
+    askName(s, "新しい台本の名前", function(){ openScript(s); });
+  }
+  function duplicateScript(s){
+    var copy = newScript(label(s) + " のコピー", JSON.parse(JSON.stringify(s.cues)));
+    lib.scripts.push(copy); save(); render();
+    showNotice("「" + label(copy) + "」を作りました。");
+  }
+  function renameScript(s){
+    askName(s, "台本の名前", function(){ render(); });
+  }
+  function deleteScript(s){
+    if(!confirm("「" + label(s) + "」を削除します。元に戻せません。よろしいですか？")) return;
+    lib.scripts = lib.scripts.filter(function(x){ return x.id !== s.id; });
+    if(lib.openId === s.id) lib.openId = null;
+    save(); render();
+    showNotice("「" + label(s) + "」を削除しました。");
+  }
+  function exportScript(s){
+    var data = JSON.stringify({title:s.title, cues:s.cues}, null, 2);
+    var blob = new Blob([data], {type:"application/json"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = safeFileName(label(s)) + ".json";
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  }
+
+  /* ---------- 名前の入力 ---------- */
+  var renameTarget = null, renameDone = null;
+  function askName(s, heading, done){
+    renameTarget = s; renameDone = done;
+    $("renameTitle").textContent = heading;
+    $("renameInput").value = s.title || "";
+    if($("renameDialog").showModal){
+      $("renameDialog").showModal();
+      $("renameInput").focus();
+      $("renameInput").select();
+    }else{
+      var v = prompt(heading, s.title || "");
+      if(v !== null) commitName(v);
+    }
+  }
+  function commitName(value){
+    if(!renameTarget) return;
+    var next = String(value == null ? "" : value).trim();
+    if(next !== renameTarget.title){
+      renameTarget.title = next;
+      renameTarget.updatedAt = nowISO();
+      save();
+    }
+    var done = renameDone;
+    renameTarget = null; renameDone = null;
+    if(done) done();
+  }
+  $("renameOk").addEventListener("click", function(){
+    var v = $("renameInput").value;
+    $("renameDialog").close();
+    commitName(v);
+  });
+  $("renameCancel").addEventListener("click", function(){
+    $("renameDialog").close();
+    var done = renameDone;
+    renameTarget = null; renameDone = null;
+    if(done) done();
+  });
+  $("renameInput").addEventListener("keydown", function(ev){
+    if(ev.key === "Enter"){ ev.preventDefault(); $("renameOk").click(); }
+  });
+
+  /* ---------- 読み込み ---------- */
+  // 一枚版の書き出し形式 {title, cues} と、cues配列だけのJSONを受ける
+  function fromJSON(raw){
+    var data;
+    try{ data = JSON.parse(raw); }catch(e){ return null; }
+    var cues = Array.isArray(data) ? data : (data && data.cues);
+    if(!Array.isArray(cues)) return null;
+    var clean = [];
+    cues.forEach(function(c){
+      if(!c || typeof c !== "object") return;
+      var at = typeof c.at === "number" ? Math.max(0, Math.round(c.at)) : null;
+      if(at == null) return;
+      clean.push({at:at, text:String(c.text == null ? "" : c.text)});
+    });
+    if(!clean.length) return null;
+    clean.sort(function(a,b){ return a.at - b.at; });
+    return {title: (!Array.isArray(data) && data.title) ? String(data.title) : "", cues: clean};
+  }
+  $("importBtn").addEventListener("click", function(){ $("file").click(); });
+  $("file").addEventListener("change", function(){
+    var f = this.files[0];
+    this.value = "";
+    if(!f) return;
+    var r = new FileReader();
+    r.onload = function(){
+      var parsed = fromJSON(String(r.result));
+      if(!parsed){
+        showNotice("「" + f.name + "」から台本を読み取れませんでした。at と text を持つ項目の配列が必要です。", true);
+        return;
+      }
+      var s = newScript(parsed.title || f.name.replace(/\.json$/i, ""), parsed.cues);
+      lib.scripts.push(s); save(); render();
+      showNotice("「" + label(s) + "」として読み込みました（" + s.cues.length + "項目）。");
+    };
+    r.readAsText(f);
+  });
+
+  /* ---------- 起動 ---------- */
+  $("newBtn").addEventListener("click", createScript);
+  $("themeBtn").addEventListener("click", function(){
+    lib.settings.theme = lib.settings.theme === "dark" ? "light" : "dark";
+    save(); applyTheme();
+  });
+
+  load();
+  render();
+  if(noticeText) showNotice(noticeText);
+})();
+</script>
+</body>
+</html>

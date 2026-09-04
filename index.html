@@ -209,7 +209,7 @@
   @keyframes blink{50%{opacity:.25}}
 
   /* ---------- 表示画面 ---------- */
-  main{flex:1; min-height:0; display:flex; flex-direction:column; padding:14px; gap:10px}
+  main{flex:1; min-height:0; display:flex; flex-direction:column; padding:14px 14px 10px; gap:10px}
   .card{
     flex:1; min-height:0; background:var(--paper); color:var(--paper-ink);
     border-radius:5px; padding:22px 24px; overflow:hidden;
@@ -247,10 +247,10 @@
   body.focus .bar{padding:8px 14px}
   body.focus .ribbon{height:7px}
   body.focus .playhead{top:0; width:7px; height:7px; margin-left:-3px; border-width:1px}
-  body.focus main{padding:7px; gap:6px}
+  body.focus main{padding:7px 7px 6px; gap:6px}
   body.focus .card{padding:14px 17px; border-radius:4px}
   body.focus .eyebrow{margin-bottom:9px; padding-bottom:7px; font-size:11px}
-  body.focus .ondeck{padding:7px 12px}
+  body.focus .ondeck{padding:7px 12px; margin:0 7px 7px}
   .ondeck, .ondeck *{touch-action:manipulation}
   .ondeck .odmain, .ondeck .txt{-webkit-user-select:none; user-select:none}
   body.focus .ondeck .txt{-webkit-line-clamp:1; line-clamp:1}
@@ -259,9 +259,15 @@
     align-items:center; justify-content:center; text-align:center; font-size:15px; line-height:1.9}
   .card.waiting .big{font-family:var(--mono); font-size:34px; color:var(--ui-ink); display:block; margin-bottom:8px}
 
+  /* 表示・一覧のどちらでも出す常設バー。発表モードではホームボタンだけ隠す */
   .ondeck{
-    flex:none; border:1px solid var(--line); border-radius:5px; background:var(--panel);
-    padding:7px 8px; display:flex; gap:8px; align-items:center;
+    flex:none; margin:0 14px 14px; border:1px solid var(--line); border-radius:5px;
+    background:var(--panel); padding:7px 8px; display:flex; gap:8px; align-items:center;
+  }
+  .ondeck .home{padding:11px 12px; display:grid; place-items:center; text-decoration:none}
+  .ondeck .home svg{
+    display:block; width:19px; height:19px; fill:none; stroke:currentColor;
+    stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round;
   }
   .ondeck .nav{
     flex:none; min-height:44px; font-size:13px; line-height:1; padding:12px 13px; color:var(--ui-ink);
@@ -423,9 +429,10 @@
     .ctrls > .btn{min-height:38px; padding-inline:5px; font-size:12px}
     #menuBtn{width:44px; min-width:44px; height:44px; padding:0; line-height:1}
     #menuBtn svg{width:22px; height:22px}
-    main{padding:10px; gap:8px}
+    main{padding:10px 10px 8px; gap:8px}
     .card{padding:16px 17px}
-    .ondeck{padding:5px; gap:5px}
+    .ondeck{padding:5px; gap:5px; margin:0 10px 10px}
+    .ondeck .home{padding:11px 10px}
     .ondeck .nav{padding:11px 9px}
     .ondeck .lbl{display:none}
     .ondeck .txt{font-size:12px}
@@ -565,15 +572,6 @@
     <div class="eyebrow" id="eyebrow"></div>
     <div class="script" id="script"></div>
   </div>
-  <div class="ondeck" id="ondeck">
-    <button class="btn nav" id="prev" title="前の項目へ戻る" aria-label="前の項目へ戻る">◀ 前へ</button>
-    <div class="odmain">
-      <span class="lbl">NEXT</span>
-      <span class="txt" id="nextTxt"></span>
-    </div>
-    <span class="cd" id="countdown"></span>
-    <button class="btn nav" id="next" title="次の項目へ進む" aria-label="次の項目へ進む">次へ ▶</button>
-  </div>
 </main>
 
 <section class="edit" id="editView" hidden>
@@ -632,6 +630,19 @@
     <div class="msg" id="impMsg"></div>
   </details>
 </section>
+
+<div class="ondeck" id="ondeck">
+  <a class="btn nav home nonlive" id="homeBtn" href="home.html" title="ホームへ" aria-label="ホームへ">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8M6 10v10h4v-6h4v6h4V10"/></svg>
+  </a>
+  <button class="btn nav" id="prev" title="前の項目へ戻る" aria-label="前の項目へ戻る">◀ 前へ</button>
+  <div class="odmain">
+    <span class="lbl">NEXT</span>
+    <span class="txt" id="nextTxt"></span>
+  </div>
+  <span class="cd" id="countdown"></span>
+  <button class="btn nav" id="next" title="次の項目へ進む" aria-label="次の項目へ進む">次へ ▶</button>
+</div>
 
 <dialog id="helpDialog">
   <div class="help-desktop">
@@ -1143,34 +1154,54 @@
       return out;
     };
   })();
+  // 実PowerPointは stored(無圧縮)格納のpptxを開かない。圧縮方式は deflate を宣言する必要がある。
+  // 圧縮率は不要なので、deflateの「非圧縮ブロック」だけで有効なdeflateストリームを組む。
+  function pptxDeflateStore(data){
+    var MAX = 65535;
+    var blocks = Math.max(1, Math.ceil(data.length / MAX));
+    var out = new Uint8Array(data.length + blocks * 5);
+    var pos = 0, at = 0;
+    for(var i=0;i<blocks;i++){
+      var len = Math.min(MAX, data.length - at);
+      out[pos++] = (i === blocks - 1) ? 1 : 0;        // BFINAL / BTYPE=00
+      out[pos++] = len & 0xFF;
+      out[pos++] = (len >>> 8) & 0xFF;
+      out[pos++] = (~len) & 0xFF;
+      out[pos++] = ((~len) >>> 8) & 0xFF;
+      out.set(data.subarray(at, at + len), pos);
+      pos += len; at += len;
+    }
+    return out;
+  }
   function pptxZip(files){
     var parts = [], central = [], offset = 0, dosTime = 0, dosDate = 33;
     files.forEach(function(f){
       var name = pptxUtf8(f.name), data = pptxUtf8(f.text), crc = pptxCrc32(data);
+      var body = pptxDeflateStore(data);
       var lh = new Uint8Array(30 + name.length), lv = new DataView(lh.buffer);
       lv.setUint32(0, 0x04034b50, true);
-      lv.setUint16(4, 20, true); lv.setUint16(6, 0, true); lv.setUint16(8, 0, true);
+      lv.setUint16(4, 20, true); lv.setUint16(6, 0, true); lv.setUint16(8, 8, true);
       lv.setUint16(10, dosTime, true); lv.setUint16(12, dosDate, true);
       lv.setUint32(14, crc, true);
-      lv.setUint32(18, data.length, true); lv.setUint32(22, data.length, true);
+      lv.setUint32(18, body.length, true); lv.setUint32(22, data.length, true);
       lv.setUint16(26, name.length, true); lv.setUint16(28, 0, true);
       lh.set(name, 30);
-      parts.push(lh); parts.push(data);
+      parts.push(lh); parts.push(body);
 
       var ch = new Uint8Array(46 + name.length), cv = new DataView(ch.buffer);
       cv.setUint32(0, 0x02014b50, true);
       cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
-      cv.setUint16(8, 0, true); cv.setUint16(10, 0, true);
+      cv.setUint16(8, 0, true); cv.setUint16(10, 8, true);
       cv.setUint16(12, dosTime, true); cv.setUint16(14, dosDate, true);
       cv.setUint32(16, crc, true);
-      cv.setUint32(20, data.length, true); cv.setUint32(24, data.length, true);
+      cv.setUint32(20, body.length, true); cv.setUint32(24, data.length, true);
       cv.setUint16(28, name.length, true);
       cv.setUint16(30, 0, true); cv.setUint16(32, 0, true);
       cv.setUint16(34, 0, true); cv.setUint16(36, 0, true);
       cv.setUint32(38, 0, true); cv.setUint32(42, offset, true);
       ch.set(name, 46);
       central.push(ch);
-      offset += lh.length + data.length;
+      offset += lh.length + body.length;
     });
     var centralSize = central.reduce(function(a,b){ return a + b.length; }, 0);
     var end = new Uint8Array(22), ev = new DataView(end.buffer);
@@ -1210,19 +1241,26 @@
   function pptxXfrm(b){
     return '<a:xfrm><a:off x="'+b.x+'" y="'+b.y+'"/><a:ext cx="'+b.cx+'" cy="'+b.cy+'"/></a:xfrm>';
   }
-  function pptxParas(lines){
+  // 継承に頼らず、スライド側で箇条書き記号と文字サイズまで指定する
+  function pptxParas(lines, opt){
+    opt = opt || {};
     var use = (lines || []).filter(function(x){ return String(x).trim(); });
-    if(!use.length) return '<a:p><a:endParaRPr lang="ja-JP"/></a:p>';
+    if(!use.length) return '<a:p><a:endParaRPr lang="ja-JP" sz="' + (opt.sz || 1800) + '"/></a:p>';
+    var pPr = opt.bullet
+      ? '<a:pPr marL="285750" indent="-285750"><a:buFont typeface="Arial"/><a:buChar char="\u2022"/></a:pPr>'
+      : '<a:pPr><a:buNone/></a:pPr>';
+    var rPr = '<a:rPr lang="ja-JP" sz="' + (opt.sz || 1800) + '"' + (opt.b ? ' b="1"' : '') + ' dirty="0"/>';
     return use.map(function(t){
-      return '<a:p><a:r><a:rPr lang="ja-JP" dirty="0"/><a:t>' + pptxEsc(t) + '</a:t></a:r></a:p>';
+      return '<a:p>' + pPr + '<a:r>' + rPr + '<a:t>' + pptxEsc(t) + '</a:t></a:r></a:p>';
     }).join("");
   }
   function pptxRels(list){
     return PPTX_HEAD + '<Relationships ' + PPTX_RELNS + '>' + list.map(function(r){
-      return '<Relationship Id="'+r.id+'" Type="'+PPTX_RT+r.type+'" Target="'+r.target+'"/>';
+      var type = r.full ? r.full : PPTX_RT + r.type;
+      return '<Relationship Id="'+r.id+'" Type="'+type+'" Target="'+r.target+'"/>';
     }).join("") + '</Relationships>';
   }
-  function pptxTheme(){
+  function pptxTheme(name){
     var names = ["dk2","lt2","accent1","accent2","accent3","accent4","accent5","accent6","hlink","folHlink"];
     var vals  = ["44546A","E7E6E6","4472C4","ED7D31","A5A5A5","FFC000","5B9BD5","70AD47","0563C1","954F72"];
     var clr = '<a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>' +
@@ -1232,13 +1270,13 @@
     var ln = '<a:ln w="6350" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>';
     var ef = '<a:effectStyle><a:effectLst/></a:effectStyle>';
     return PPTX_HEAD +
-      '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Kanpe">' +
-      '<a:themeElements><a:clrScheme name="Kanpe">' + clr + '</a:clrScheme>' +
-      '<a:fontScheme name="Kanpe">' +
+      '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="' + name + '">' +
+      '<a:themeElements><a:clrScheme name="' + name + '">' + clr + '</a:clrScheme>' +
+      '<a:fontScheme name="' + name + '">' +
         '<a:majorFont><a:latin typeface="Calibri Light"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont>' +
         '<a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont>' +
       '</a:fontScheme>' +
-      '<a:fmtScheme name="Kanpe">' +
+      '<a:fmtScheme name="' + name + '">' +
         '<a:fillStyleLst>'+fill+fill+fill+'</a:fillStyleLst>' +
         '<a:lnStyleLst>'+ln+ln+ln+'</a:lnStyleLst>' +
         '<a:effectStyleLst>'+ef+ef+ef+'</a:effectStyleLst>' +
@@ -1269,7 +1307,7 @@
       pptxPlaceholder(2, "Title 1", '<p:ph type="title"/>', PPTX_TITLE_BOX, '<a:p><a:endParaRPr lang="ja-JP"/></a:p>') +
       pptxPlaceholder(3, "Content Placeholder 2", '<p:ph type="body" idx="1"/>', PPTX_BODY_BOX, '<a:p><a:endParaRPr lang="ja-JP"/></a:p>') +
       '</p:spTree></p:cSld>' +
-      '<p:clrMapOvr><a:overrideClrMapping ' + PPTX_CLRMAP + '/></p:clrMapOvr></p:sldLayout>';
+      '<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>';
   }
   function pptxNotesMaster(){
     return PPTX_HEAD + '<p:notesMaster ' + PPTX_NS + '><p:cSld><p:spTree>' + PPTX_GRP +
@@ -1278,16 +1316,21 @@
       '</p:spTree></p:cSld><p:clrMap ' + PPTX_CLRMAP + '/>' +
       '<p:notesStyle><a:lvl1pPr><a:defRPr sz="1200"/></a:lvl1pPr></p:notesStyle></p:notesMaster>';
   }
+  // 実PowerPointが出力するファイルと同じく、スライド側の図形にも座標を持たせる。
+  // レイアウト・マスターからの継承だけに頼ると、継承を解決しない実装で開けない。
   function pptxSlideXml(sl){
     return PPTX_HEAD + '<p:sld ' + PPTX_NS + '><p:cSld><p:spTree>' + PPTX_GRP +
-      pptxPlaceholder(2, "Title 1", '<p:ph type="title"/>', null, pptxParas([sl.title])) +
-      pptxPlaceholder(3, "Content Placeholder 2", '<p:ph type="body" idx="1"/>', null, pptxParas(sl.points)) +
+      pptxPlaceholder(2, "Title 1", '<p:ph type="title"/>', PPTX_TITLE_BOX,
+        pptxParas([sl.title], {sz:3200, b:true})) +
+      pptxPlaceholder(3, "Content Placeholder 2", '<p:ph type="body" idx="1"/>', PPTX_BODY_BOX,
+        pptxParas(sl.points, {sz:2000, bullet:true})) +
       '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
   }
   function pptxNotesXml(sl){
     return PPTX_HEAD + '<p:notes ' + PPTX_NS + '><p:cSld><p:spTree>' + PPTX_GRP +
-      pptxPlaceholder(2, "Notes Placeholder 1", '<p:ph type="body" idx="1"/>', null,
-        pptxParas(String(sl.notes||"").split("\n"))) +
+      pptxPlaceholder(2, "Notes Placeholder 1", '<p:ph type="body" idx="1"/>',
+        {x:685800, y:4400550, cx:5486400, cy:3600450},
+        pptxParas(String(sl.notes||"").split("\n"), {sz:1200})) +
       '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:notes>';
   }
   // slides: [{title, points:[], notes}]
@@ -1300,7 +1343,8 @@
       '<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="'+PPTX_CT+'slideMaster+xml"/>',
       '<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="'+PPTX_CT+'slideLayout+xml"/>',
       '<Override PartName="/ppt/notesMasters/notesMaster1.xml" ContentType="'+PPTX_CT+'notesMaster+xml"/>',
-      '<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>'];
+      '<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>',
+      '<Override PartName="/ppt/theme/theme2.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>'];
     var presRels = [{id:"rId1", type:"slideMaster", target:"slideMasters/slideMaster1.xml"}];
     var sldIds = [];
     slides.forEach(function(sl, i){
@@ -1312,10 +1356,24 @@
     });
     var nmRid = "rId" + (slides.length + 2);
     presRels.push({id:nmRid, type:"notesMaster", target:"notesMasters/notesMaster1.xml"});
+    // presProps / viewProps / tableStyles が無いと実PowerPointは開かない
+    presRels.push({id:"rId" + (slides.length + 3), type:"presProps", target:"presProps.xml"});
+    presRels.push({id:"rId" + (slides.length + 4), type:"viewProps", target:"viewProps.xml"});
+    presRels.push({id:"rId" + (slides.length + 5), type:"theme", target:"theme/theme1.xml"});
+    presRels.push({id:"rId" + (slides.length + 6), type:"tableStyles", target:"tableStyles.xml"});
+    types.push('<Override PartName="/ppt/presProps.xml" ContentType="'+PPTX_CT+'presProps+xml"/>');
+    types.push('<Override PartName="/ppt/viewProps.xml" ContentType="'+PPTX_CT+'viewProps+xml"/>');
+    types.push('<Override PartName="/ppt/tableStyles.xml" ContentType="'+PPTX_CT+'tableStyles+xml"/>');
+    types.push('<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>');
+    types.push('<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>');
 
     files.push({name:"[Content_Types].xml", text: PPTX_HEAD +
       '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' + types.join("") + '</Types>'});
-    files.push({name:"_rels/.rels", text: pptxRels([{id:"rId1", type:"officeDocument", target:"ppt/presentation.xml"}])});
+    files.push({name:"_rels/.rels", text: pptxRels([
+      {id:"rId1", type:"officeDocument", target:"ppt/presentation.xml"},
+      {id:"rId2", target:"docProps/core.xml",
+       full:"http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties"},
+      {id:"rId3", type:"extended-properties", target:"docProps/app.xml"}])});
     files.push({name:"ppt/presentation.xml", text: PPTX_HEAD + '<p:presentation ' + PPTX_NS + '>' +
       '<p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>' +
       '<p:notesMasterIdLst><p:notesMasterId r:id="'+nmRid+'"/></p:notesMasterIdLst>' +
@@ -1330,9 +1388,34 @@
     files.push({name:"ppt/slideLayouts/_rels/slideLayout1.xml.rels", text: pptxRels([
       {id:"rId1", type:"slideMaster", target:"../slideMasters/slideMaster1.xml"}])});
     files.push({name:"ppt/notesMasters/notesMaster1.xml", text: pptxNotesMaster()});
+    // テーマパートはマスターごとに1つ必要。slideMaster と共有すると実PowerPointが開かない
     files.push({name:"ppt/notesMasters/_rels/notesMaster1.xml.rels", text: pptxRels([
-      {id:"rId1", type:"theme", target:"../theme/theme1.xml"}])});
-    files.push({name:"ppt/theme/theme1.xml", text: pptxTheme()});
+      {id:"rId1", type:"theme", target:"../theme/theme2.xml"}])});
+    files.push({name:"ppt/theme/theme1.xml", text: pptxTheme("Kanpe")});
+    files.push({name:"ppt/theme/theme2.xml", text: pptxTheme("Kanpe Notes")});
+    files.push({name:"ppt/presProps.xml", text: PPTX_HEAD + '<p:presentationPr ' + PPTX_NS + '/>'});
+    files.push({name:"ppt/viewProps.xml", text: PPTX_HEAD + '<p:viewPr ' + PPTX_NS + '/>'});
+    files.push({name:"ppt/tableStyles.xml", text: PPTX_HEAD +
+      '<a:tblStyleLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ' +
+      'def="{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}"/>'});
+    var stamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+    files.push({name:"docProps/core.xml", text: PPTX_HEAD +
+      '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" ' +
+      'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" ' +
+      'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' +
+      '<dc:title>' + pptxEsc(handoutTitle()) + '</dc:title>' +
+      '<dc:creator>Kanpe</dc:creator><cp:lastModifiedBy>Kanpe</cp:lastModifiedBy>' +
+      '<dcterms:created xsi:type="dcterms:W3CDTF">' + stamp + '</dcterms:created>' +
+      '<dcterms:modified xsi:type="dcterms:W3CDTF">' + stamp + '</dcterms:modified>' +
+      '</cp:coreProperties>'});
+    // 要素の順序はCT_ExtendedPropertiesのスキーマ順に合わせる
+    files.push({name:"docProps/app.xml", text: PPTX_HEAD +
+      '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" ' +
+      'xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">' +
+      '<PresentationFormat>Widescreen</PresentationFormat>' +
+      '<Slides>' + slides.length + '</Slides>' +
+      '<Application>Kanpe</Application>' +
+      '</Properties>'});
     slides.forEach(function(sl, i){
       var n = i + 1;
       files.push({name:"ppt/slides/slide"+n+".xml", text: pptxSlideXml(sl)});
@@ -1540,9 +1623,11 @@
     }
     if(nxt && nxt.at-e <= 30 && ticks[idx+1]) ticks[idx+1].className = "tick soon";
 
-    // カンペ本体
+    // カンペ本体。一覧を開いている間はカードが隠れていて採寸できないので飛ばす
     var card = $("card");
-    if(idx < 0){
+    if(!$("editView").hidden){
+      // 一覧表示中は描画しない
+    }else if(idx < 0){
       card.className = "card waiting";
       card.innerHTML = "";
       var w = document.createElement("div");
@@ -1674,7 +1759,8 @@
       save(); render();
     };
   }
-  setInterval(function(){ if(!$("editView").hidden) return; render(); }, 250);
+  // バーは一覧でも出しているので、編集中も更新し続ける（重い採寸はrender内で飛ばす）
+  setInterval(function(){ render(); }, 250);
 
   /* ---------- 編集 ---------- */
   // 隣の項目と表示時刻を入れ替えて、順番だけを動かす
@@ -2100,8 +2186,12 @@
     if(ev.target.closest && ev.target.closest("#editBtn, .inline-save")) return;
     finishInlineEdit(true);
   });
+  // ホーム版のURL。空文字にするとホームボタンを出さない
+  var HOME_URL = "home.html";
+  if(HOME_URL) $("homeBtn").setAttribute("href", HOME_URL);
+  else $("homeBtn").hidden = true;
   $("ondeck").addEventListener("touchend", function(ev){
-    if(!$("editView").hidden || !ev.target.closest || !ev.target.closest(".odmain")) return;
+    if(!ev.target.closest || !ev.target.closest(".odmain")) return;
     var touch = ev.changedTouches && ev.changedTouches[0];
     if(!touch) return;
     var now = Date.now();
@@ -2115,7 +2205,7 @@
     }
   }, {passive:false});
   $("ondeck").addEventListener("dblclick", function(ev){
-    if($("editView").hidden && ev.target.closest && ev.target.closest(".odmain")) ev.preventDefault();
+    if(ev.target.closest && ev.target.closest(".odmain")) ev.preventDefault();
   });
   $("ribbon").addEventListener("click", function(ev){
     if(document.body.classList.contains("focus")) return;
@@ -2242,7 +2332,7 @@
   });
   document.addEventListener("keydown", function(ev){
     var t = ev.target.tagName;
-    if(t==="INPUT" || t==="TEXTAREA" || t==="BUTTON" || ev.target.isContentEditable) return;
+    if(t==="INPUT" || t==="TEXTAREA" || t==="BUTTON" || t==="A" || ev.target.isContentEditable) return;
     if(ev.code==="Space"){ ev.preventDefault(); running ? pause() : start(); }
     else if(ev.altKey && (ev.key==="ArrowRight" || ev.key==="ArrowLeft")){
       if($("editView").hidden && nudgeCurrentCue(ev.key==="ArrowRight" ? 5 : -5)) ev.preventDefault();
