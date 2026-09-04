@@ -209,7 +209,7 @@
   @keyframes blink{50%{opacity:.25}}
 
   /* ---------- 表示画面 ---------- */
-  main{flex:1; min-height:0; display:flex; flex-direction:column; padding:14px; gap:10px}
+  main{flex:1; min-height:0; display:flex; flex-direction:column; padding:14px 14px 10px; gap:10px}
   .card{
     flex:1; min-height:0; background:var(--paper); color:var(--paper-ink);
     border-radius:5px; padding:22px 24px; overflow:hidden;
@@ -247,10 +247,10 @@
   body.focus .bar{padding:8px 14px}
   body.focus .ribbon{height:7px}
   body.focus .playhead{top:0; width:7px; height:7px; margin-left:-3px; border-width:1px}
-  body.focus main{padding:7px; gap:6px}
+  body.focus main{padding:7px 7px 6px; gap:6px}
   body.focus .card{padding:14px 17px; border-radius:4px}
   body.focus .eyebrow{margin-bottom:9px; padding-bottom:7px; font-size:11px}
-  body.focus .ondeck{padding:7px 12px}
+  body.focus .ondeck{padding:7px 12px; margin:0 7px 7px}
   .ondeck, .ondeck *{touch-action:manipulation}
   .ondeck .odmain, .ondeck .txt{-webkit-user-select:none; user-select:none}
   body.focus .ondeck .txt{-webkit-line-clamp:1; line-clamp:1}
@@ -259,9 +259,15 @@
     align-items:center; justify-content:center; text-align:center; font-size:15px; line-height:1.9}
   .card.waiting .big{font-family:var(--mono); font-size:34px; color:var(--ui-ink); display:block; margin-bottom:8px}
 
+  /* 表示・一覧のどちらでも出す常設バー。発表モードではホームボタンだけ隠す */
   .ondeck{
-    flex:none; border:1px solid var(--line); border-radius:5px; background:var(--panel);
-    padding:7px 8px; display:flex; gap:8px; align-items:center;
+    flex:none; margin:0 14px 14px; border:1px solid var(--line); border-radius:5px;
+    background:var(--panel); padding:7px 8px; display:flex; gap:8px; align-items:center;
+  }
+  .ondeck .home{padding:11px 12px; display:grid; place-items:center; text-decoration:none}
+  .ondeck .home svg{
+    display:block; width:19px; height:19px; fill:none; stroke:currentColor;
+    stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round;
   }
   .ondeck .nav{
     flex:none; min-height:44px; font-size:13px; line-height:1; padding:12px 13px; color:var(--ui-ink);
@@ -423,9 +429,10 @@
     .ctrls > .btn{min-height:38px; padding-inline:5px; font-size:12px}
     #menuBtn{width:44px; min-width:44px; height:44px; padding:0; line-height:1}
     #menuBtn svg{width:22px; height:22px}
-    main{padding:10px; gap:8px}
+    main{padding:10px 10px 8px; gap:8px}
     .card{padding:16px 17px}
-    .ondeck{padding:5px; gap:5px}
+    .ondeck{padding:5px; gap:5px; margin:0 10px 10px}
+    .ondeck .home{padding:11px 10px}
     .ondeck .nav{padding:11px 9px}
     .ondeck .lbl{display:none}
     .ondeck .txt{font-size:12px}
@@ -565,15 +572,6 @@
     <div class="eyebrow" id="eyebrow"></div>
     <div class="script" id="script"></div>
   </div>
-  <div class="ondeck" id="ondeck">
-    <button class="btn nav" id="prev" title="前の項目へ戻る" aria-label="前の項目へ戻る">◀ 前へ</button>
-    <div class="odmain">
-      <span class="lbl">NEXT</span>
-      <span class="txt" id="nextTxt"></span>
-    </div>
-    <span class="cd" id="countdown"></span>
-    <button class="btn nav" id="next" title="次の項目へ進む" aria-label="次の項目へ進む">次へ ▶</button>
-  </div>
 </main>
 
 <section class="edit" id="editView" hidden>
@@ -632,6 +630,19 @@
     <div class="msg" id="impMsg"></div>
   </details>
 </section>
+
+<div class="ondeck" id="ondeck">
+  <a class="btn nav home nonlive" id="homeBtn" href="home.html" title="ホームへ" aria-label="ホームへ">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8M6 10v10h4v-6h4v6h4V10"/></svg>
+  </a>
+  <button class="btn nav" id="prev" title="前の項目へ戻る" aria-label="前の項目へ戻る">◀ 前へ</button>
+  <div class="odmain">
+    <span class="lbl">NEXT</span>
+    <span class="txt" id="nextTxt"></span>
+  </div>
+  <span class="cd" id="countdown"></span>
+  <button class="btn nav" id="next" title="次の項目へ進む" aria-label="次の項目へ進む">次へ ▶</button>
+</div>
 
 <dialog id="helpDialog">
   <div class="help-desktop">
@@ -1598,9 +1609,11 @@
     }
     if(nxt && nxt.at-e <= 30 && ticks[idx+1]) ticks[idx+1].className = "tick soon";
 
-    // カンペ本体
+    // カンペ本体。一覧を開いている間はカードが隠れていて採寸できないので飛ばす
     var card = $("card");
-    if(idx < 0){
+    if(!$("editView").hidden){
+      // 一覧表示中は描画しない
+    }else if(idx < 0){
       card.className = "card waiting";
       card.innerHTML = "";
       var w = document.createElement("div");
@@ -1732,7 +1745,8 @@
       save(); render();
     };
   }
-  setInterval(function(){ if(!$("editView").hidden) return; render(); }, 250);
+  // バーは一覧でも出しているので、編集中も更新し続ける（重い採寸はrender内で飛ばす）
+  setInterval(function(){ render(); }, 250);
 
   /* ---------- 編集 ---------- */
   // 隣の項目と表示時刻を入れ替えて、順番だけを動かす
@@ -2158,8 +2172,12 @@
     if(ev.target.closest && ev.target.closest("#editBtn, .inline-save")) return;
     finishInlineEdit(true);
   });
+  // ホーム版のURL。空文字にするとホームボタンを出さない
+  var HOME_URL = "home.html";
+  if(HOME_URL) $("homeBtn").setAttribute("href", HOME_URL);
+  else $("homeBtn").hidden = true;
   $("ondeck").addEventListener("touchend", function(ev){
-    if(!$("editView").hidden || !ev.target.closest || !ev.target.closest(".odmain")) return;
+    if(!ev.target.closest || !ev.target.closest(".odmain")) return;
     var touch = ev.changedTouches && ev.changedTouches[0];
     if(!touch) return;
     var now = Date.now();
@@ -2173,7 +2191,7 @@
     }
   }, {passive:false});
   $("ondeck").addEventListener("dblclick", function(ev){
-    if($("editView").hidden && ev.target.closest && ev.target.closest(".odmain")) ev.preventDefault();
+    if(ev.target.closest && ev.target.closest(".odmain")) ev.preventDefault();
   });
   $("ribbon").addEventListener("click", function(ev){
     if(document.body.classList.contains("focus")) return;
@@ -2300,7 +2318,7 @@
   });
   document.addEventListener("keydown", function(ev){
     var t = ev.target.tagName;
-    if(t==="INPUT" || t==="TEXTAREA" || t==="BUTTON" || ev.target.isContentEditable) return;
+    if(t==="INPUT" || t==="TEXTAREA" || t==="BUTTON" || t==="A" || ev.target.isContentEditable) return;
     if(ev.code==="Space"){ ev.preventDefault(); running ? pause() : start(); }
     else if(ev.altKey && (ev.key==="ArrowRight" || ev.key==="ArrowLeft")){
       if($("editView").hidden && nudgeCurrentCue(ev.key==="ArrowRight" ? 5 : -5)) ev.preventDefault();
