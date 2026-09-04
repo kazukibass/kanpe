@@ -1260,7 +1260,7 @@
       return '<Relationship Id="'+r.id+'" Type="'+type+'" Target="'+r.target+'"/>';
     }).join("") + '</Relationships>';
   }
-  function pptxTheme(){
+  function pptxTheme(name){
     var names = ["dk2","lt2","accent1","accent2","accent3","accent4","accent5","accent6","hlink","folHlink"];
     var vals  = ["44546A","E7E6E6","4472C4","ED7D31","A5A5A5","FFC000","5B9BD5","70AD47","0563C1","954F72"];
     var clr = '<a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>' +
@@ -1270,13 +1270,13 @@
     var ln = '<a:ln w="6350" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>';
     var ef = '<a:effectStyle><a:effectLst/></a:effectStyle>';
     return PPTX_HEAD +
-      '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Kanpe">' +
-      '<a:themeElements><a:clrScheme name="Kanpe">' + clr + '</a:clrScheme>' +
-      '<a:fontScheme name="Kanpe">' +
+      '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="' + name + '">' +
+      '<a:themeElements><a:clrScheme name="' + name + '">' + clr + '</a:clrScheme>' +
+      '<a:fontScheme name="' + name + '">' +
         '<a:majorFont><a:latin typeface="Calibri Light"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont>' +
         '<a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont>' +
       '</a:fontScheme>' +
-      '<a:fmtScheme name="Kanpe">' +
+      '<a:fmtScheme name="' + name + '">' +
         '<a:fillStyleLst>'+fill+fill+fill+'</a:fillStyleLst>' +
         '<a:lnStyleLst>'+ln+ln+ln+'</a:lnStyleLst>' +
         '<a:effectStyleLst>'+ef+ef+ef+'</a:effectStyleLst>' +
@@ -1343,7 +1343,8 @@
       '<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="'+PPTX_CT+'slideMaster+xml"/>',
       '<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="'+PPTX_CT+'slideLayout+xml"/>',
       '<Override PartName="/ppt/notesMasters/notesMaster1.xml" ContentType="'+PPTX_CT+'notesMaster+xml"/>',
-      '<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>'];
+      '<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>',
+      '<Override PartName="/ppt/theme/theme2.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>'];
     var presRels = [{id:"rId1", type:"slideMaster", target:"slideMasters/slideMaster1.xml"}];
     var sldIds = [];
     slides.forEach(function(sl, i){
@@ -1387,9 +1388,11 @@
     files.push({name:"ppt/slideLayouts/_rels/slideLayout1.xml.rels", text: pptxRels([
       {id:"rId1", type:"slideMaster", target:"../slideMasters/slideMaster1.xml"}])});
     files.push({name:"ppt/notesMasters/notesMaster1.xml", text: pptxNotesMaster()});
+    // テーマパートはマスターごとに1つ必要。slideMaster と共有すると実PowerPointが開かない
     files.push({name:"ppt/notesMasters/_rels/notesMaster1.xml.rels", text: pptxRels([
-      {id:"rId1", type:"theme", target:"../theme/theme1.xml"}])});
-    files.push({name:"ppt/theme/theme1.xml", text: pptxTheme()});
+      {id:"rId1", type:"theme", target:"../theme/theme2.xml"}])});
+    files.push({name:"ppt/theme/theme1.xml", text: pptxTheme("Kanpe")});
+    files.push({name:"ppt/theme/theme2.xml", text: pptxTheme("Kanpe Notes")});
     files.push({name:"ppt/presProps.xml", text: PPTX_HEAD + '<p:presentationPr ' + PPTX_NS + '/>'});
     files.push({name:"ppt/viewProps.xml", text: PPTX_HEAD + '<p:viewPr ' + PPTX_NS + '/>'});
     files.push({name:"ppt/tableStyles.xml", text: PPTX_HEAD +
