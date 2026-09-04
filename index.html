@@ -339,6 +339,41 @@
   .msg.ok{color:var(--go)}
   .msg.ng{color:var(--standby)}
   .empty-actions{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:12px}
+
+  /* ---------- 読み上げ時間の見積もり ---------- */
+  .est{
+    border:1px solid var(--line); border-radius:5px; background:var(--panel); padding:11px;
+    display:flex; flex-direction:column; gap:9px;
+  }
+  .est-head{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .est-title{font-size:13px; color:var(--ui-ink); margin-right:auto}
+  .est-field{display:inline-flex; align-items:center; gap:6px}
+  .est-head label{font-size:11px; color:var(--muted); letter-spacing:.06em}
+  .est-head input[type=text]{width:5.2em; font-size:14px; padding:6px 8px}
+  .est-unit{font-size:11px; color:var(--muted)}
+  .est-summary{display:flex; gap:8px; flex-wrap:wrap}
+  .est-stat{
+    flex:1 1 8.5em; min-width:8.5em; border:1px solid var(--line); border-radius:4px;
+    background:var(--stage); padding:7px 9px;
+  }
+  .est-stat .k{display:block; font-size:10px; color:var(--muted); letter-spacing:.06em}
+  .est-stat .v{
+    display:block; margin-top:2px; font-family:var(--mono); font-size:18px; color:var(--ui-ink);
+    font-variant-numeric:tabular-nums;
+  }
+  .est-stat.over{border-color:var(--standby)}
+  .est-stat.over .v{color:var(--standby)}
+  .est-stat.ok .v{color:var(--go)}
+  .cue-est{
+    display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+    font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;
+  }
+  .cue-est .num{font-family:var(--mono); color:var(--soft-ink)}
+  .cue-est .gap{padding:2px 6px; border-radius:3px; background:var(--stage); color:var(--soft-ink)}
+  .cue-est.over .gap{background:var(--danger-bg); color:var(--danger-ink)}
+
+  /* ---------- 配布資料（印刷 / PDF保存） ---------- */
+  #handoutPrint{display:none}
   dialog{width:min(440px,calc(100% - 28px)); color:var(--ui-ink); background:var(--panel);
     border:1px solid var(--line); border-radius:8px; padding:20px; box-shadow:var(--card-shadow)}
   dialog::backdrop{background:rgba(0,0,0,.55)}
@@ -449,6 +484,26 @@
   @media (prefers-reduced-motion:reduce){
     *{animation:none !important; transition:none !important}
   }
+  @media print{
+    html, body{
+      height:auto !important; overflow:visible !important;
+      background:#FFFFFF !important; color:#000000 !important;
+    }
+    body > *:not(#handoutPrint){display:none !important}
+    #handoutPrint{
+      display:block !important; background:#FFFFFF; color:#000000;
+      font-family:var(--gothic); font-size:11pt; line-height:1.75;
+    }
+    #handoutPrint h1{
+      font-size:18pt; margin:0 0 5mm; padding-bottom:2mm; border-bottom:1pt solid #000000;
+    }
+    #handoutPrint section{margin:0 0 6mm; break-inside:avoid; page-break-inside:avoid}
+    #handoutPrint h2{font-size:12.5pt; margin:0 0 2mm}
+    #handoutPrint ul{margin:0; padding-left:6mm}
+    #handoutPrint li{margin:0 0 1.5mm}
+    #handoutPrint .none{margin:0; font-size:10pt; color:#555555}
+    @page{margin:18mm 16mm}
+  }
 </style>
 <link rel="stylesheet" href="https://kazukibass.github.io/assets/shell.css">
 <script src="https://kazukibass.github.io/assets/shell.js"
@@ -535,6 +590,22 @@
     開始からの経過時間で切り替わります。時間は <b>分:秒</b>（例 <code>3:30</code>）か <b>分</b> だけでも入力できます。<br>
     最後の項目が表示される時刻でタイマーは自動停止します。台本は自分の端末にだけ保存されます。
   </p>
+  <section class="est" id="estPanel">
+    <div class="est-head">
+      <span class="est-title">読み上げ時間の見積もり</span>
+      <span class="est-field">
+        <label for="targetInput">目標</label>
+        <input type="text" id="targetInput" placeholder="10:00" autocomplete="off" aria-label="目標とする発表時間">
+      </span>
+      <span class="est-field">
+        <label for="rateInput">話速</label>
+        <input type="text" id="rateInput" inputmode="numeric" autocomplete="off" aria-label="1分あたりの読み上げ文字数">
+        <span class="est-unit">字/分</span>
+      </span>
+    </div>
+    <div class="est-summary" id="estSummary"></div>
+    <p class="note" id="estNote"></p>
+  </section>
   <div id="rows"></div>
   <div style="display:flex; gap:8px; flex-wrap:wrap">
     <button class="btn primary" id="add">項目を追加</button>
@@ -606,6 +677,10 @@
     <button class="btn ghost" id="refitBtn" type="button">↻　表示を再計算</button>
     <button class="btn ghost" id="helpBtn" type="button">?　使い方</button>
     <div class="menu-sep"></div>
+    <div class="menu-label">配布資料</div>
+    <button class="btn ghost" id="handoutMdBtn" type="button">📄　配布資料をMarkdownで書き出す</button>
+    <button class="btn ghost" id="handoutPdfBtn" type="button">🖨　配布資料を印刷／PDFで保存</button>
+    <div class="menu-sep"></div>
     <div class="menu-label">AI用テンプレート</div>
     <button class="btn ghost" id="promptConvertBtn" type="button">📄　JSON変換プロンプト</button>
     <button class="btn ghost" id="promptCreateBtn" type="button">📄　台本作成プロンプト</button>
@@ -623,6 +698,8 @@
     <form method="dialog"><button class="btn">閉じる</button></form>
   </div>
 </dialog>
+
+<div id="handoutPrint" aria-hidden="true"></div>
 
 <script>
 (function(){
@@ -642,7 +719,8 @@
   }
   function save(){
     saveState("保存中…", false);
-    var data = JSON.stringify({cues:cues, scale:scale, title:title, theme:theme});
+    var data = JSON.stringify({cues:cues, scale:scale, title:title, theme:theme,
+      target:targetSec, rate:speechRate});
     if(canStore){ try{ localStorage.setItem(KEY,data); }catch(e){ canStore=false; } }
     mem[KEY] = data;
     clearTimeout(saveTimer);
@@ -661,6 +739,9 @@
   var scale = 1;
   var title = "";
   var theme = "dark";
+  var DEFAULT_RATE = 300;   // 日本語の読み上げ速度の既定値（字/分）
+  var targetSec = 0;        // 目標とする発表時間。0は未設定
+  var speechRate = DEFAULT_RATE;
   var running = false, startedAt = 0, offset = 0;
   var wakeLock = null;
   var inlineCue = null, inlineOriginal = "";
@@ -671,7 +752,13 @@
   var altAdjustCue = null, altAdjustTimer = null;
 
   var saved = load();
-  if(saved){ cues = saved.cues || []; scale = saved.scale || 1; title = saved.title || ""; theme = saved.theme === "light" ? "light" : "dark"; }
+  if(saved){
+    cues = saved.cues || []; scale = saved.scale || 1; title = saved.title || "";
+    theme = saved.theme === "light" ? "light" : "dark";
+    targetSec = (typeof saved.target === "number" && saved.target > 0) ? Math.round(saved.target) : 0;
+    speechRate = (typeof saved.rate === "number" && saved.rate >= 100 && saved.rate <= 900)
+      ? Math.round(saved.rate) : DEFAULT_RATE;
+  }
   document.documentElement.style.setProperty("--scale", scale);
 
   var $ = function(id){ return document.getElementById(id); };
@@ -724,6 +811,7 @@
     "- 形式は『01 半角空白 短い要約』とし、番号を含む先頭8文字以内で内容が分かるようにする",
     "- 例: 『01 開会挨拶』『02 講師紹介』『03 質疑応答』",
     "- 見出しの直後で改行し、その下に実際に読む本文を書く",
+    "- 本文の中で要点を並べるときは、行頭を「・」にした箇条書きにする。配布資料と将来のスライド出力は、この行を要点として拾う",
     "- 項目数が100以上なら番号を001、002のような3桁に統一する",
     "- 氏名、会社名、数値、URL、注意事項は原文どおり保持する",
     "- 読み上げない指示は【間を取る】【画面切替】のように区別する",
@@ -761,6 +849,7 @@
     "- 形式は『01 半角空白 短い要約』とし、番号を含む先頭8文字以内で内容が分かるようにする",
     "- 例: 『01 導入』『02 商品紹介』『03 まとめ』",
     "- 見出しの直後で改行し、その下に読み上げ本文を書く",
+    "- 本文の中で要点を並べるときは、行頭を「・」にした箇条書きにする。配布資料と将来のスライド出力は、この行を要点として拾う",
     "- 項目数が100以上なら番号を001、002のような3桁に統一する",
     "- 重要な固有名詞や数字は省略せず、読み間違えにくい文章にする",
     "- 読み上げない動作指示は【間を取る】【スライド変更】のように書く",
@@ -863,6 +952,169 @@
     }
     return raw.replace(/\s+/g," ").trim().slice(0,8);
   }
+  /* ---------- 要点の抽出 ---------- */
+  // 1行目は見出しなので読み上げに数えない。【】で囲んだ部分は読み上げない指示として落とす。
+  // 要点は行頭記号の箇条書きを優先し、無ければ本文から自動抽出する。
+  var POINT_MARK_RE = /^\s*(?:[-*+•·・▪▫●○◇◆■□]\s*|(?:\d{1,2}|[①-⑳])[.)．）]\s*)/;
+  var DIRECTION_RE = /【[^】]*】/g;
+  var EST_TOL = 3;          // 何秒までを「ぴったり」とみなすか
+  var POINT_MAX = 60;       // 自動抽出した要点1件の最大文字数
+
+  function stripDirections(str){ return String(str==null?"":str).replace(DIRECTION_RE, ""); }
+  function clip(str, n){
+    var t = String(str==null?"":str).trim();
+    return t.length > n ? t.slice(0, n) + "…" : t;
+  }
+  function sentences(str){
+    var parts = String(str==null?"":str).match(/[^。！？!?]*[。！？!?]|[^。！？!?]+$/g) || [];
+    return parts.map(function(x){ return x.trim(); }).filter(function(x){ return x; });
+  }
+  // 箇条書きが無いときの代替。段落が1つなら先頭3文、複数なら各段落の第1文を使う。
+  function autoPoints(speech){
+    var paras = String(speech||"").split(/\n{2,}/)
+      .map(function(x){ return x.replace(/\n/g, " ").trim(); })
+      .filter(function(x){ return x; });
+    if(!paras.length) return [];
+    var out = [];
+    if(paras.length === 1){
+      out = sentences(paras[0]).slice(0, 3);
+    }else{
+      paras.slice(0, 4).forEach(function(x){
+        var first = sentences(x)[0];
+        if(first) out.push(first);
+      });
+    }
+    return out.map(function(x){ return clip(x, POINT_MAX); });
+  }
+  function splitCue(text, isLast){
+    var lines = normalize(text).split("\n");
+    var heading = "", i = 0;
+    for(; i<lines.length; i++){
+      if(lines[i].trim()){ heading = lines[i].trim(); i++; break; }
+    }
+    var marked = [], speechLines = [];
+    for(; i<lines.length; i++){
+      var bare = stripDirections(lines[i]);
+      if(!bare.trim()){ speechLines.push(""); continue; }
+      var body = bare.replace(POINT_MARK_RE, "").trim();
+      if(POINT_MARK_RE.test(bare) && body) marked.push(body);
+      speechLines.push(body || bare.trim());
+    }
+    var speech = speechLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    var isEnd = !!isLast && cueTitle(text, true) === "終了";
+    return {
+      heading: heading || "（見出しなし）",
+      points: marked.length ? marked : autoPoints(speech),
+      source: marked.length ? "mark" : "auto",
+      speech: speech,
+      chars: isEnd ? 0 : speech.replace(/\s+/g, "").length,
+      isEnd: isEnd
+    };
+  }
+
+  /* ---------- 読み上げ時間の見積もり ---------- */
+  function estSeconds(chars){
+    var rate = speechRate > 0 ? speechRate : DEFAULT_RATE;
+    return chars > 0 ? chars / rate * 60 : 0;
+  }
+  function fmtSigned(sec){
+    var v = Math.round(sec);
+    if(v === 0) return "±0:00";
+    return (v > 0 ? "+" : "−") + fmt(Math.abs(v));
+  }
+  // 各項目の「割当（次の項目までの時間）」と「推定（文字数からの読み上げ時間）」
+  function cueStats(){
+    var s = sorted();
+    return s.map(function(c, i){
+      var parts = splitCue(c.text, i === s.length-1);
+      var allocated = i < s.length-1 ? Math.max(0, s[i+1].at - c.at) : null;
+      var estimated = estSeconds(parts.chars);
+      return {
+        cue:c, index:i, parts:parts, allocated:allocated, estimated:estimated,
+        diff: allocated==null ? null : estimated - allocated
+      };
+    });
+  }
+  function statEl(key, value, cls){
+    var box = document.createElement("div");
+    box.className = "est-stat" + (cls ? " " + cls : "");
+    var k = document.createElement("span"); k.className = "k"; k.textContent = key;
+    var v = document.createElement("span"); v.className = "v"; v.textContent = value;
+    box.appendChild(k); box.appendChild(v);
+    return box;
+  }
+  function renderEstimate(){
+    var box = $("estSummary");
+    if(!box) return;
+    var stats = cueStats(), s = sorted();
+    var estTotal = 0, over = 0;
+    stats.forEach(function(st){
+      estTotal += st.estimated;
+      if(st.diff != null && st.diff > EST_TOL) over++;
+    });
+    var endAt = s.length ? s[s.length-1].at : 0;
+    box.innerHTML = "";
+    box.appendChild(statEl("台本の終点", s.length ? fmt(endAt) : "—"));
+    box.appendChild(statEl("読み上げの推定", fmt(estTotal),
+      !s.length ? "" : (estTotal - endAt > EST_TOL ? "over" : "ok")));
+    box.appendChild(targetSec > 0
+      ? statEl("目標との差", fmtSigned(estTotal - targetSec),
+          estTotal - targetSec > EST_TOL ? "over" : "ok")
+      : statEl("目標との差", "—"));
+    box.appendChild(statEl("時間オーバー", over + " 項目", over ? "over" : "ok"));
+
+    var note = $("estNote");
+    if(note){
+      note.textContent = targetSec > 0
+        ? "目標 " + fmt(targetSec) + "。見出し行と【】の指示は読み上げに数えません。割当は次の項目までの時間です。"
+        : "目標を入れると差分を表示します。見出し行と【】の指示は読み上げに数えません。割当は次の項目までの時間です。";
+    }
+  }
+
+  /* ---------- 配布資料（話し言葉を除き、見出しと要点だけ） ---------- */
+  function handoutSections(){
+    return cueStats().filter(function(st){ return !st.parts.isEnd; });
+  }
+  function handoutTitle(){ return title.trim() || "無題の台本"; }
+  function buildHandoutMarkdown(){
+    var out = ["# " + handoutTitle(), ""];
+    handoutSections().forEach(function(st){
+      out.push("## " + st.parts.heading);
+      st.parts.points.forEach(function(pt){ out.push("- " + pt); });
+      out.push("");
+    });
+    return out.join("\n").replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "") + "\n";
+  }
+  function buildHandoutInto(box){
+    box.innerHTML = "";
+    var h1 = document.createElement("h1");
+    h1.textContent = handoutTitle();
+    box.appendChild(h1);
+    handoutSections().forEach(function(st){
+      var sec = document.createElement("section");
+      var h2 = document.createElement("h2");
+      h2.textContent = st.parts.heading;
+      sec.appendChild(h2);
+      if(st.parts.points.length){
+        var ul = document.createElement("ul");
+        st.parts.points.forEach(function(pt){
+          var li = document.createElement("li"); li.textContent = pt; ul.appendChild(li);
+        });
+        sec.appendChild(ul);
+      }else{
+        var none = document.createElement("p");
+        none.className = "none"; none.textContent = "（要点なし）";
+        sec.appendChild(none);
+      }
+      box.appendChild(sec);
+    });
+  }
+  function handoutReady(){
+    if(cues.length) return true;
+    alert("台本がありません。先に項目を作ってください。");
+    return false;
+  }
+
   /* ---------- タイマー操作 ---------- */
   function setPlayButton(isPlaying, label){
     $("toggle").innerHTML = isPlaying
@@ -1212,6 +1464,7 @@
         ];
         title = "サンプル台本"; $("titleInput").value = title; save(); drawRows();
       });
+      renderEstimate();
       return;
     }
     cues.forEach(function(c, i){
@@ -1250,12 +1503,46 @@
       var previewText = document.createElement("span"); previewText.className = "sample";
       function updatePreview(){ previewText.textContent = cueTitle(ta.value, i===cues.length-1); }
       updatePreview(); preview.appendChild(previewLabel); preview.appendChild(previewText);
-      ta.addEventListener("input", function(){ c.text = ta.value; updatePreview(); save(); });
+
+      var est = document.createElement("div"); est.className = "cue-est";
+      function updateEst(){
+        var isLast = i === cues.length-1;
+        var parts = splitCue(ta.value, isLast);
+        var allocated = isLast ? null : Math.max(0, cues[i+1].at - c.at);
+        var estimated = estSeconds(parts.chars);
+        est.innerHTML = "";
+        est.classList.toggle("over", allocated != null && estimated - allocated > EST_TOL);
+        addSeg(est, "割当", allocated == null ? "終点" : fmt(allocated));
+        addSeg(est, "推定", fmt(estimated));
+        if(allocated != null){
+          var gap = document.createElement("span");
+          gap.className = "gap"; gap.textContent = fmtSigned(estimated - allocated);
+          est.appendChild(gap);
+        }
+        var pt = document.createElement("span");
+        pt.textContent = "要点 " + parts.points.length + "件" +
+          (parts.points.length && parts.source === "auto" ? "（自動抽出）" : "");
+        est.appendChild(pt);
+      }
+      updateEst();
+
+      ta.addEventListener("input", function(){
+        c.text = ta.value; updatePreview(); updateEst(); renderEstimate(); save();
+      });
 
       row.appendChild(top); row.appendChild(ta);
       row.appendChild(preview);
+      row.appendChild(est);
       box.appendChild(row);
     });
+    renderEstimate();
+  }
+  function addSeg(box, label, value){
+    var seg = document.createElement("span");
+    var k = document.createElement("span"); k.textContent = label + " ";
+    var v = document.createElement("span"); v.className = "num"; v.textContent = value;
+    seg.appendChild(k); seg.appendChild(v);
+    box.appendChild(seg);
   }
 
   function currentCueIndex(){
@@ -1442,6 +1729,38 @@
   $("promptDownloadBtn").addEventListener("click", function(){
     downloadText(promptFileName || "カンペ_AIテンプレート.txt", $("promptPreview").value);
     $("promptDialog").close();
+  });
+  $("targetInput").value = targetSec > 0 ? fmt(targetSec) : "";
+  $("rateInput").value = String(speechRate);
+  $("targetInput").addEventListener("change", function(){
+    if(!this.value.trim()){ targetSec = 0; }
+    else{
+      var v = toSec(this.value);
+      if(v != null) targetSec = v;
+    }
+    this.value = targetSec > 0 ? fmt(targetSec) : "";
+    save(); renderEstimate();
+  });
+  $("rateInput").addEventListener("change", function(){
+    var n = parseInt(normalize(this.value).replace(/[^\d]/g, ""), 10);
+    if(isFinite(n) && n >= 100 && n <= 900) speechRate = n;  // 読めない値は直前の設定を残す
+    this.value = String(speechRate);
+    save();
+    if($("editView").hidden) renderEstimate(); else drawRows();
+  });
+  $("handoutMdBtn").addEventListener("click", function(){
+    closeMenu();
+    if(inlineCue) finishInlineEdit(true);
+    if(!handoutReady()) return;
+    showPrompt("配布資料（Markdown）", safeFileName(title) + "_配布資料.md", buildHandoutMarkdown());
+  });
+  $("handoutPdfBtn").addEventListener("click", function(){
+    closeMenu();
+    if(inlineCue) finishInlineEdit(true);
+    if(!handoutReady()) return;
+    buildHandoutInto($("handoutPrint"));
+    // 描画を1フレーム待ってから印刷ダイアログを開く
+    setTimeout(function(){ window.print(); }, 60);
   });
   $("promptAllBtn").addEventListener("click", function(){
     closeMenu();
@@ -1681,6 +2000,7 @@
   });
 
   setMode(cues.length===0);
+  renderEstimate();
   saveState(canStore ? "✓ 台本を端末保存" : "一時保存のみ", canStore);
   render();
 })();
