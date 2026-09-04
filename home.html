@@ -119,13 +119,30 @@
   .dialog-actions{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap}
   .dialog-actions .sp{margin-left:auto}
 
-  @media (max-width:560px){
+  /* モバイル用の下部ナビ。カンペ側の常設バーと対になる導線 */
+  .navbar{
+    flex:none; display:none; margin:0 10px 10px; gap:6px; align-items:center;
+    border:1px solid var(--line); border-radius:5px; background:var(--panel); padding:5px;
+  }
+  .navbar .nav{
+    flex:1 1 0; min-height:44px; display:flex; align-items:center; justify-content:center; gap:6px;
+    font-size:13px; line-height:1; text-decoration:none; color:var(--ui-ink); white-space:nowrap;
+  }
+  .navbar .nav svg{
+    display:block; width:18px; height:18px; fill:none; stroke:currentColor;
+    stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round;
+  }
+
+  @media (max-width:520px){
     .bar{padding:8px 10px; gap:7px}
     .brand{font-size:26px}
     .kicker{display:none}
     main{padding:10px}
     .card-actions .btn{flex:1 1 auto}
     .card-actions .sp{margin-left:0}
+    /* ヘッダーの操作は下部ナビへ移すので二重に出さない */
+    .bar .desk{display:none}
+    .navbar{display:flex}
   }
 </style>
 <link rel="stylesheet" href="https://kazukibass.github.io/assets/shell.css">
@@ -145,8 +162,8 @@
   <div class="bar">
     <span class="brand">Kanpe</span>
     <span class="kicker">台本ライブラリ</span>
-    <button class="btn primary" id="newBtn" type="button">新規作成</button>
-    <button class="btn" id="importBtn" type="button">読み込み</button>
+    <button class="btn primary desk" id="newBtn" type="button">新規作成</button>
+    <button class="btn desk" id="importBtn" type="button">読み込み</button>
     <input type="file" id="file" accept=".json,application/json" hidden>
     <button class="btn ghost" id="themeBtn" type="button">☀</button>
   </div>
@@ -160,6 +177,21 @@
   <div id="list"></div>
   <p class="note" id="footNote"></p>
 </main>
+
+<nav class="navbar" id="navbar" aria-label="移動">
+  <a class="btn nav" id="toKanpeBtn" href="index.html" title="カンペを開く">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    <span>カンペ</span>
+  </a>
+  <button class="btn nav" id="navNewBtn" type="button">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    <span>新規</span>
+  </button>
+  <button class="btn nav" id="navImportBtn" type="button">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 11l5 5 5-5M4 20h16"/></svg>
+    <span>読み込み</span>
+  </button>
+</nav>
 
 <dialog id="renameDialog">
   <h2 id="renameTitle">台本の名前</h2>
@@ -428,7 +460,15 @@
   function createScript(){
     var s = newScript("", []);
     lib.scripts.push(s); save();
-    askName(s, "新しい台本の名前", function(){ openScript(s); });
+    askName(s, "新しい台本の名前", function(committed){
+      if(!committed){
+        // 取り消したら作りかけを残さず、カンペへも移動しない
+        lib.scripts = lib.scripts.filter(function(x){ return x.id !== s.id; });
+        save(); render();
+        return;
+      }
+      openScript(s);
+    });
   }
   function duplicateScript(s){
     var copy = newScript(label(s) + " のコピー", JSON.parse(JSON.stringify(s.cues)));
@@ -441,7 +481,16 @@
   function deleteScript(s){
     if(!confirm("「" + label(s) + "」を削除します。元に戻せません。よろしいですか？")) return;
     lib.scripts = lib.scripts.filter(function(x){ return x.id !== s.id; });
-    if(lib.openId === s.id) lib.openId = null;
+    if(lib.openId === s.id){
+      lib.openId = null;
+      // kanpe.v1 に中身が残っていると、次にホームを開いたとき受け皿の処理が
+      // 拾い直して削除した台本が復活する。設定だけ残して空にする。
+      writeKey(LIVE_KEY, {
+        cues: [], title: "",
+        scale: lib.settings.scale, theme: lib.settings.theme,
+        target: lib.settings.target, rate: lib.settings.rate
+      });
+    }
     save(); render();
     showNotice("「" + label(s) + "」を削除しました。");
   }
@@ -468,6 +517,7 @@
     }else{
       var v = prompt(heading, s.title || "");
       if(v !== null) commitName(v);
+      else finishName(false);
     }
   }
   function commitName(value){
@@ -478,9 +528,12 @@
       renameTarget.updatedAt = nowISO();
       save();
     }
+    finishName(true);
+  }
+  function finishName(committed){
     var done = renameDone;
     renameTarget = null; renameDone = null;
-    if(done) done();
+    if(done) done(committed);
   }
   $("renameOk").addEventListener("click", function(){
     var v = $("renameInput").value;
@@ -489,9 +542,11 @@
   });
   $("renameCancel").addEventListener("click", function(){
     $("renameDialog").close();
-    var done = renameDone;
-    renameTarget = null; renameDone = null;
-    if(done) done();
+    finishName(false);
+  });
+  // Esc やバックドロップで閉じられた場合も取り消しとして扱う
+  $("renameDialog").addEventListener("close", function(){
+    if(renameTarget) finishName(false);
   });
   $("renameInput").addEventListener("keydown", function(ev){
     if(ev.key === "Enter"){ ev.preventDefault(); $("renameOk").click(); }
@@ -536,6 +591,8 @@
 
   /* ---------- 起動 ---------- */
   $("newBtn").addEventListener("click", createScript);
+  $("navNewBtn").addEventListener("click", createScript);
+  $("navImportBtn").addEventListener("click", function(){ $("file").click(); });
   $("themeBtn").addEventListener("click", function(){
     lib.settings.theme = lib.settings.theme === "dark" ? "light" : "dark";
     save(); applyTheme();
