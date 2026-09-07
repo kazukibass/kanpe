@@ -119,6 +119,32 @@
   .dialog-actions{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap}
   .dialog-actions .sp{margin-left:auto}
 
+  .out-list{display:flex; flex-direction:column; gap:7px; margin-top:4px}
+  .out-list .btn{justify-content:flex-start; text-align:left; min-height:40px}
+  .out-name{font-size:13px; color:var(--soft-ink); overflow-wrap:anywhere; margin:0 0 10px}
+
+  .wide-dialog{width:min(700px,calc(100% - 28px))}
+  .wide-dialog textarea{
+    font-family:var(--gothic); font-size:14px; line-height:1.7; width:100%; min-height:150px;
+    padding:9px 10px; background:var(--stage); color:var(--ui-ink);
+    border:1px solid var(--line); border-radius:3px; resize:vertical;
+  }
+  .prompt-dialog textarea{height:min(56vh,540px); min-height:260px; font-size:13px}
+  .field{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; margin-top:10px}
+  .field select{
+    font-family:inherit; font-size:14px; padding:8px 9px; max-width:100%;
+    background:var(--stage); color:var(--ui-ink); border:1px solid var(--line); border-radius:3px;
+  }
+  .sub{border-top:1px solid var(--line); margin-top:14px; padding-top:11px}
+  .sub .menu-label{font-size:11px; color:var(--muted); letter-spacing:.06em; margin-bottom:7px}
+  .msg{font-size:12px; line-height:1.7; min-height:1em; margin-top:9px}
+  .msg.ok{color:var(--go)}
+  .msg.ng{color:var(--standby)}
+  code{font-family:var(--mono); font-size:12px; color:var(--soft-ink)}
+
+  /* 配布資料（印刷 / PDF保存） */
+  #handoutPrint{display:none}
+
   /* モバイル用の下部ナビ。カンペ側の常設バーと対になる導線 */
   .navbar{
     flex:none; display:none; margin:0 10px 10px; gap:6px; align-items:center;
@@ -143,6 +169,27 @@
     /* ヘッダーの操作は下部ナビへ移すので二重に出さない */
     .bar .desk{display:none}
     .navbar{display:flex}
+    .wide-dialog textarea{font-size:16px}
+  }
+  @media print{
+    html, body{
+      height:auto !important; overflow:visible !important; display:block !important;
+      background:#FFFFFF !important; color:#000000 !important;
+    }
+    body > *:not(#handoutPrint){display:none !important}
+    #handoutPrint{
+      display:block !important; background:#FFFFFF; color:#000000;
+      font-family:var(--gothic); font-size:11pt; line-height:1.75;
+    }
+    #handoutPrint h1{
+      font-size:18pt; margin:0 0 5mm; padding-bottom:2mm; border-bottom:1pt solid #000000;
+    }
+    #handoutPrint section{margin:0 0 6mm; break-inside:avoid; page-break-inside:avoid}
+    #handoutPrint h2{font-size:12.5pt; margin:0 0 2mm}
+    #handoutPrint ul{margin:0; padding-left:6mm}
+    #handoutPrint li{margin:0 0 1.5mm}
+    #handoutPrint .none{margin:0; font-size:10pt; color:#555555}
+    @page{margin:18mm 16mm}
   }
 </style>
 <link rel="stylesheet" href="https://kazukibass.github.io/assets/shell.css">
@@ -164,7 +211,7 @@
     <span class="kicker">台本ライブラリ</span>
     <button class="btn primary desk" id="newBtn" type="button">新規作成</button>
     <button class="btn desk" id="importBtn" type="button">読み込み</button>
-    <input type="file" id="file" accept=".json,application/json" hidden>
+    <input type="file" id="file" accept=".json,.txt,.md,text/plain,application/json" hidden>
     <button class="btn ghost" id="themeBtn" type="button">☀</button>
   </div>
 </header>
@@ -192,6 +239,71 @@
     <span>読み込み</span>
   </button>
 </nav>
+
+<dialog id="outDialog">
+  <h2>書き出し</h2>
+  <p class="out-name" id="outName"></p>
+  <div class="out-list">
+    <button class="btn" id="outPptxBtn" type="button">🖥　PowerPointのたたき台（.pptx）</button>
+    <button class="btn" id="outHandoutMdBtn" type="button">📄　配布資料（Markdown）</button>
+    <button class="btn" id="outHandoutPdfBtn" type="button">🖨　配布資料を印刷／PDFで保存</button>
+    <button class="btn" id="outJsonBtn" type="button">⤓　台本データ（JSON）</button>
+  </div>
+  <p class="note">配布資料とPowerPointは、見出しを表題に、行頭が「・」の行を要点にします。話し言葉は発表者ノートへ回り、配布資料には出ません。</p>
+  <div class="dialog-actions">
+    <span class="sp"></span>
+    <button class="btn" id="outClose" type="button">閉じる</button>
+  </div>
+</dialog>
+
+<dialog class="wide-dialog" id="impDialog">
+  <h2>台本を取り込む</h2>
+  <p class="note">
+    JSONでも、<code>3:30　講師紹介</code> のように時間と内容が並んだ行でも読めます。<br>
+    時間のない行は直前の項目の続きとして扱います。読めなかった行は飛ばして、読めた分だけ取り込みます。
+  </p>
+  <textarea id="impText" placeholder="0:00	開会のあいさつ
+3:30	講師紹介
+・経歴
+・今日のねらい"></textarea>
+  <div class="field">
+    <label for="impTarget">取り込み先</label>
+    <select id="impTarget"></select>
+    <select id="impMode" aria-label="既存の台本への入れ方" hidden>
+      <option value="add">末尾に追加</option>
+      <option value="replace">中身を置き換え</option>
+    </select>
+  </div>
+  <div class="msg" id="impMsg"></div>
+  <div class="dialog-actions">
+    <button class="btn" id="impFileBtn" type="button">ファイルから読む</button>
+    <span class="sp"></span>
+    <button class="btn" id="impClose" type="button">閉じる</button>
+    <button class="btn primary" id="impRun" type="button">取り込む</button>
+  </div>
+  <div class="sub">
+    <div class="menu-label">AIに作らせる</div>
+    <div class="out-list">
+      <button class="btn" id="promptCreateBtn" type="button">📄　台本作成プロンプト</button>
+      <button class="btn" id="promptConvertBtn" type="button">📄　既存台本をJSON化するプロンプト</button>
+      <button class="btn" id="promptAllBtn" type="button">⤓　2種類を一括保存</button>
+    </div>
+    <p class="note">生成されたJSONを上の欄に貼り付けると取り込めます。</p>
+  </div>
+</dialog>
+
+<dialog class="wide-dialog prompt-dialog" id="promptDialog">
+  <h2 id="promptDialogTitle">AI用テンプレート</h2>
+  <p class="note">内容を確認してからダウンロードできます。この画面上で編集して保存することもできます。</p>
+  <textarea id="promptPreview" aria-label="テンプレート内容"></textarea>
+  <div class="dialog-actions">
+    <button class="btn primary" id="promptDownloadBtn" type="button">⤓ ダウンロード</button>
+    <span class="sp"></span>
+    <button class="btn" id="promptBack" type="button">取り込みへ戻る</button>
+  </div>
+</dialog>
+
+<div id="handoutPrint" aria-hidden="true"></div>
 
 <dialog id="renameDialog">
   <h2 id="renameTitle">台本の名前</h2>
@@ -357,6 +469,114 @@
     var t = String(s||"").trim().replace(/[\\/:*?"<>|\x00-\x1F]/g, " ").replace(/\s+/g," ").trim();
     return t ? t.slice(0,80) : "kanpe";
   }
+  function downloadText(name, content){
+    var blob = new Blob([content], {type:"text/plain;charset=utf-8"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  }
+  function downloadBytes(name, bytes, mime){
+    var blob = new Blob([bytes], {type: mime});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  }
+
+  /* ---------- 台本の読み取り（一枚版と同じ規則） ---------- */
+  // 見出し・要点・話し言葉の分け方は index.html と同じにしておく。
+  // 片方だけ直すと、カンペの見積もりとホームの配布資料がずれる。
+  function normalize(str){
+    return String(str==null?"":str)
+      .replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0)-0xFEE0); })
+      .replace(/[：]/g, ":").replace(/[　]/g, " ").replace(/\r\n?/g, "\n");
+  }
+  // 読めたら秒数、読めなければ null
+  function toSec(v){
+    if(typeof v === "number" && isFinite(v)) return Math.max(0, Math.round(v));
+    var str = normalize(v).trim();
+    if(!str) return null;
+    var m;
+    if((m = str.match(/^(\d{1,3}):(\d{1,2}):(\d{1,2})$/)))
+      return (+m[1])*3600 + (+m[2])*60 + (+m[3]);
+    if((m = str.match(/^(\d{1,3}):(\d{1,2})$/)))
+      return (+m[1])*60 + (+m[2]);
+    if((m = str.match(/^(\d{1,3})\s*分(?:\s*(\d{1,2})\s*秒)?$/)))
+      return (+m[1])*60 + (+(m[2]||0));
+    if((m = str.match(/^(\d{1,4})\s*秒$/))) return +m[1];
+    if((m = str.match(/^(\d{1,3})$/))) return (+m[1])*60;  // 数字だけなら「分」
+    return null;
+  }
+  function cueTitle(text, isLast){
+    var raw = String(text || "（本文なし）");
+    if(isLast){
+      var heading = raw.split(/\r?\n/)[0].trim()
+        .replace(/^\d{1,3}(?:[.)）．:：-])?\s*/, "")
+        .replace(/^[■▶●◆・\-]\s*/, "");
+      if(/^(終了|終演|完了|終わり|おわり|END)(?:\s|$|[：:・])/i.test(heading)) return "終了";
+    }
+    return raw.replace(/\s+/g," ").trim().slice(0,8);
+  }
+
+  /* ---------- 要点の抽出 ---------- */
+  // 1行目は見出しなので読み上げに数えない。【】で囲んだ部分は読み上げない指示として落とす。
+  // 要点は行頭記号の箇条書きを優先し、無ければ本文から自動抽出する。
+  var POINT_MARK_RE = /^\s*(?:[-*+•·・▪▫●○◇◆■□]\s*|(?:\d{1,2}|[①-⑳])[.)．）]\s*)/;
+  var DIRECTION_RE = /【[^】]*】/g;
+  var EST_TOL = 3;          // 何秒までを「ぴったり」とみなすか
+  var POINT_MAX = 60;       // 自動抽出した要点1件の最大文字数
+
+  function stripDirections(str){ return String(str==null?"":str).replace(DIRECTION_RE, ""); }
+  function clip(str, n){
+    var t = String(str==null?"":str).trim();
+    return t.length > n ? t.slice(0, n) + "…" : t;
+  }
+  function sentences(str){
+    var parts = String(str==null?"":str).match(/[^。！？!?]*[。！？!?]|[^。！？!?]+$/g) || [];
+    return parts.map(function(x){ return x.trim(); }).filter(function(x){ return x; });
+  }
+  // 箇条書きが無いときの代替。段落が1つなら先頭3文、複数なら各段落の第1文を使う。
+  function autoPoints(speech){
+    var paras = String(speech||"").split(/\n{2,}/)
+      .map(function(x){ return x.replace(/\n/g, " ").trim(); })
+      .filter(function(x){ return x; });
+    if(!paras.length) return [];
+    var out = [];
+    if(paras.length === 1){
+      out = sentences(paras[0]).slice(0, 3);
+    }else{
+      paras.slice(0, 4).forEach(function(x){
+        var first = sentences(x)[0];
+        if(first) out.push(first);
+      });
+    }
+    return out.map(function(x){ return clip(x, POINT_MAX); });
+  }
+  function splitCue(text, isLast){
+    var lines = normalize(text).split("\n");
+    var heading = "", i = 0;
+    for(; i<lines.length; i++){
+      if(lines[i].trim()){ heading = lines[i].trim(); i++; break; }
+    }
+    var marked = [], speechLines = [];
+    for(; i<lines.length; i++){
+      var bare = stripDirections(lines[i]);
+      if(!bare.trim()){ speechLines.push(""); continue; }
+      var body = bare.replace(POINT_MARK_RE, "").trim();
+      if(POINT_MARK_RE.test(bare) && body) marked.push(body);
+      speechLines.push(body || bare.trim());
+    }
+    var speech = speechLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    var isEnd = !!isLast && cueTitle(text, true) === "終了";
+    return {
+      heading: heading || "（見出しなし）",
+      points: marked.length ? marked : autoPoints(speech),
+      source: marked.length ? "mark" : "auto",
+      speech: speech,
+      chars: isEnd ? 0 : speech.replace(/\s+/g, "").length,
+      isEnd: isEnd
+    };
+  }
+
   function applyTheme(){
     var light = lib.settings.theme === "light";
     document.documentElement.setAttribute("data-theme", lib.settings.theme);
@@ -387,8 +607,8 @@
       a.className = "btn primary"; a.type = "button"; a.textContent = "最初の台本を作る";
       a.addEventListener("click", createScript);
       var b = document.createElement("button");
-      b.className = "btn"; b.type = "button"; b.textContent = "JSONを読み込む";
-      b.addEventListener("click", function(){ $("file").click(); });
+      b.className = "btn"; b.type = "button"; b.textContent = "台本を取り込む";
+      b.addEventListener("click", openImport);
       acts.appendChild(a); acts.appendChild(b);
       em.appendChild(acts);
       box.appendChild(em);
@@ -421,7 +641,7 @@
       acts.appendChild(mkBtn("開く", "primary", function(){ openScript(s); }));
       acts.appendChild(mkBtn("名前", "", function(){ renameScript(s); }));
       acts.appendChild(mkBtn("複製", "", function(){ duplicateScript(s); }));
-      acts.appendChild(mkBtn("書き出し", "", function(){ exportScript(s); }));
+      acts.appendChild(mkBtn("出力", "", function(){ openOutput(s); }));
       var sp = document.createElement("span"); sp.className = "sp"; acts.appendChild(sp);
       acts.appendChild(mkBtn("削除", "danger", function(){ deleteScript(s); }));
 
@@ -446,13 +666,16 @@
   }
 
   /* ---------- 操作 ---------- */
-  function openScript(s){
-    // 一枚版が読む形へ書き出す。一枚版はホームの存在を知らなくてよい。
+  // 一枚版が読む形へ書き出す。一枚版はホームの存在を知らなくてよい。
+  function pushLive(s){
     writeKey(LIVE_KEY, {
-      cues: s.cues, title: s.title,
+      cues: s ? s.cues : [], title: s ? s.title : "",
       scale: lib.settings.scale, theme: lib.settings.theme,
       target: lib.settings.target, rate: lib.settings.rate
     });
+  }
+  function openScript(s){
+    pushLive(s);
     lib.openId = s.id;
     save();
     location.href = "index.html";
@@ -485,11 +708,7 @@
       lib.openId = null;
       // kanpe.v1 に中身が残っていると、次にホームを開いたとき受け皿の処理が
       // 拾い直して削除した台本が復活する。設定だけ残して空にする。
-      writeKey(LIVE_KEY, {
-        cues: [], title: "",
-        scale: lib.settings.scale, theme: lib.settings.theme,
-        target: lib.settings.target, rate: lib.settings.rate
-      });
+      pushLive(null);
     }
     save(); render();
     showNotice("「" + label(s) + "」を削除しました。");
@@ -503,6 +722,395 @@
     a.click();
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
   }
+
+  /* ---------- 書き出し ---------- */
+  // 選択中の1本だけを見る。pptx 側は handoutTitle / handoutSections 経由でここを読む。
+  var outTarget = null;
+
+  function handoutTitle(){ return outTarget ? label(outTarget) : "無題の台本"; }
+  // 「終了」項目は配布資料にもスライドにも出さない
+  function handoutSections(){
+    if(!outTarget) return [];
+    var cues = outTarget.cues.slice().sort(function(a,b){ return a.at - b.at; });
+    return cues.map(function(c, i){ return splitCue(c.text, i === cues.length-1); })
+               .filter(function(parts){ return !parts.isEnd; });
+  }
+  function buildHandoutMarkdown(){
+    var out = ["# " + handoutTitle(), ""];
+    handoutSections().forEach(function(parts){
+      out.push("## " + parts.heading);
+      parts.points.forEach(function(pt){ out.push("- " + pt); });
+      out.push("");
+    });
+    return out.join("\n").replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "") + "\n";
+  }
+  function buildHandoutInto(box){
+    box.innerHTML = "";
+    var h1 = document.createElement("h1");
+    h1.textContent = handoutTitle();
+    box.appendChild(h1);
+    handoutSections().forEach(function(parts){
+      var sec = document.createElement("section");
+      var h2 = document.createElement("h2");
+      h2.textContent = parts.heading;
+      sec.appendChild(h2);
+      if(parts.points.length){
+        var ul = document.createElement("ul");
+        parts.points.forEach(function(pt){
+          var li = document.createElement("li"); li.textContent = pt; ul.appendChild(li);
+        });
+        sec.appendChild(ul);
+      }else{
+        var none = document.createElement("p");
+        none.className = "none"; none.textContent = "（要点なし）";
+        sec.appendChild(none);
+      }
+      box.appendChild(sec);
+    });
+  }
+
+  /* ---------- PowerPointのたたき台（.pptx を外部ライブラリなしで組み立てる） ---------- */
+  // .pptx はZIP＋OOXML。圧縮は使わず stored（無圧縮）で格納する。
+  var PPTX_CRC = (function(){
+    var t = new Int32Array(256);
+    for(var n=0;n<256;n++){
+      var c = n;
+      for(var k=0;k<8;k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c;
+    }
+    return t;
+  })();
+  function pptxCrc32(bytes){
+    var c = -1;
+    for(var i=0;i<bytes.length;i++) c = PPTX_CRC[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ -1) >>> 0;
+  }
+  var pptxUtf8 = (function(){
+    var enc = (typeof TextEncoder !== "undefined") ? new TextEncoder() : null;
+    return function(str){
+      if(enc) return enc.encode(str);
+      // TextEncoder が無い環境向けの手書きUTF-8
+      var s = unescape(encodeURIComponent(String(str)));
+      var out = new Uint8Array(s.length);
+      for(var i=0;i<s.length;i++) out[i] = s.charCodeAt(i) & 0xFF;
+      return out;
+    };
+  })();
+  // 実PowerPointは stored(無圧縮)格納のpptxを開かない。圧縮方式は deflate を宣言する必要がある。
+  // 圧縮率は不要なので、deflateの「非圧縮ブロック」だけで有効なdeflateストリームを組む。
+  function pptxDeflateStore(data){
+    var MAX = 65535;
+    var blocks = Math.max(1, Math.ceil(data.length / MAX));
+    var out = new Uint8Array(data.length + blocks * 5);
+    var pos = 0, at = 0;
+    for(var i=0;i<blocks;i++){
+      var len = Math.min(MAX, data.length - at);
+      out[pos++] = (i === blocks - 1) ? 1 : 0;        // BFINAL / BTYPE=00
+      out[pos++] = len & 0xFF;
+      out[pos++] = (len >>> 8) & 0xFF;
+      out[pos++] = (~len) & 0xFF;
+      out[pos++] = ((~len) >>> 8) & 0xFF;
+      out.set(data.subarray(at, at + len), pos);
+      pos += len; at += len;
+    }
+    return out;
+  }
+  function pptxZip(files){
+    var parts = [], central = [], offset = 0, dosTime = 0, dosDate = 33;
+    files.forEach(function(f){
+      var name = pptxUtf8(f.name), data = pptxUtf8(f.text), crc = pptxCrc32(data);
+      var body = pptxDeflateStore(data);
+      var lh = new Uint8Array(30 + name.length), lv = new DataView(lh.buffer);
+      lv.setUint32(0, 0x04034b50, true);
+      lv.setUint16(4, 20, true); lv.setUint16(6, 0, true); lv.setUint16(8, 8, true);
+      lv.setUint16(10, dosTime, true); lv.setUint16(12, dosDate, true);
+      lv.setUint32(14, crc, true);
+      lv.setUint32(18, body.length, true); lv.setUint32(22, data.length, true);
+      lv.setUint16(26, name.length, true); lv.setUint16(28, 0, true);
+      lh.set(name, 30);
+      parts.push(lh); parts.push(body);
+
+      var ch = new Uint8Array(46 + name.length), cv = new DataView(ch.buffer);
+      cv.setUint32(0, 0x02014b50, true);
+      cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+      cv.setUint16(8, 0, true); cv.setUint16(10, 8, true);
+      cv.setUint16(12, dosTime, true); cv.setUint16(14, dosDate, true);
+      cv.setUint32(16, crc, true);
+      cv.setUint32(20, body.length, true); cv.setUint32(24, data.length, true);
+      cv.setUint16(28, name.length, true);
+      cv.setUint16(30, 0, true); cv.setUint16(32, 0, true);
+      cv.setUint16(34, 0, true); cv.setUint16(36, 0, true);
+      cv.setUint32(38, 0, true); cv.setUint32(42, offset, true);
+      ch.set(name, 46);
+      central.push(ch);
+      offset += lh.length + body.length;
+    });
+    var centralSize = central.reduce(function(a,b){ return a + b.length; }, 0);
+    var end = new Uint8Array(22), ev = new DataView(end.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true);
+    ev.setUint32(12, centralSize, true); ev.setUint32(16, offset, true);
+    var all = parts.concat(central); all.push(end);
+    var total = all.reduce(function(a,b){ return a + b.length; }, 0);
+    var out = new Uint8Array(total), pos = 0;
+    all.forEach(function(b){ out.set(b, pos); pos += b.length; });
+    return out;
+  }
+
+  function pptxEsc(str){
+    return String(str==null?"":str)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&apos;")
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"");
+  }
+  var PPTX_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  var PPTX_NS = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ' +
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
+    'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
+  var PPTX_RELNS = 'xmlns="http://schemas.openxmlformats.org/package/2006/relationships"';
+  var PPTX_RT = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/";
+  var PPTX_CT = "application/vnd.openxmlformats-officedocument.presentationml.";
+  var PPTX_MIME = PPTX_CT + "presentation";
+  // 16:9。EMUは1インチ914400
+  var PPTX_W = 12192000, PPTX_H = 6858000;
+  var PPTX_TITLE_BOX = {x:838200, y:365125, cx:10515600, cy:1325563};
+  var PPTX_BODY_BOX  = {x:838200, y:1825625, cx:10515600, cy:4351338};
+  var PPTX_GRP = '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>' +
+    '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>';
+  var PPTX_CLRMAP = 'bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" ' +
+    'accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"';
+
+  function pptxXfrm(b){
+    return '<a:xfrm><a:off x="'+b.x+'" y="'+b.y+'"/><a:ext cx="'+b.cx+'" cy="'+b.cy+'"/></a:xfrm>';
+  }
+  // 継承に頼らず、スライド側で箇条書き記号と文字サイズまで指定する
+  function pptxParas(lines, opt){
+    opt = opt || {};
+    var use = (lines || []).filter(function(x){ return String(x).trim(); });
+    if(!use.length) return '<a:p><a:endParaRPr lang="ja-JP" sz="' + (opt.sz || 1800) + '"/></a:p>';
+    var pPr = opt.bullet
+      ? '<a:pPr marL="285750" indent="-285750"><a:buFont typeface="Arial"/><a:buChar char="\u2022"/></a:pPr>'
+      : '<a:pPr><a:buNone/></a:pPr>';
+    var rPr = '<a:rPr lang="ja-JP" sz="' + (opt.sz || 1800) + '"' + (opt.b ? ' b="1"' : '') + ' dirty="0"/>';
+    return use.map(function(t){
+      return '<a:p>' + pPr + '<a:r>' + rPr + '<a:t>' + pptxEsc(t) + '</a:t></a:r></a:p>';
+    }).join("");
+  }
+  function pptxRels(list){
+    return PPTX_HEAD + '<Relationships ' + PPTX_RELNS + '>' + list.map(function(r){
+      var type = r.full ? r.full : PPTX_RT + r.type;
+      return '<Relationship Id="'+r.id+'" Type="'+type+'" Target="'+r.target+'"/>';
+    }).join("") + '</Relationships>';
+  }
+  function pptxTheme(name){
+    var names = ["dk2","lt2","accent1","accent2","accent3","accent4","accent5","accent6","hlink","folHlink"];
+    var vals  = ["44546A","E7E6E6","4472C4","ED7D31","A5A5A5","FFC000","5B9BD5","70AD47","0563C1","954F72"];
+    var clr = '<a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>' +
+      '<a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>' +
+      names.map(function(n, i){ return '<a:'+n+'><a:srgbClr val="'+vals[i]+'"/></a:'+n+'>'; }).join("");
+    var fill = '<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>';
+    var ln = '<a:ln w="6350" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>';
+    var ef = '<a:effectStyle><a:effectLst/></a:effectStyle>';
+    return PPTX_HEAD +
+      '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="' + name + '">' +
+      '<a:themeElements><a:clrScheme name="' + name + '">' + clr + '</a:clrScheme>' +
+      '<a:fontScheme name="' + name + '">' +
+        '<a:majorFont><a:latin typeface="Calibri Light"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont>' +
+        '<a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont>' +
+      '</a:fontScheme>' +
+      '<a:fmtScheme name="' + name + '">' +
+        '<a:fillStyleLst>'+fill+fill+fill+'</a:fillStyleLst>' +
+        '<a:lnStyleLst>'+ln+ln+ln+'</a:lnStyleLst>' +
+        '<a:effectStyleLst>'+ef+ef+ef+'</a:effectStyleLst>' +
+        '<a:bgFillStyleLst>'+fill+fill+fill+'</a:bgFillStyleLst>' +
+      '</a:fmtScheme></a:themeElements><a:objectDefaults/><a:extraClrSchemeLst/></a:theme>';
+  }
+  function pptxPlaceholder(id, name, ph, box, body){
+    return '<p:sp><p:nvSpPr><p:cNvPr id="'+id+'" name="'+name+'"/>' +
+      '<p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr>'+ph+'</p:nvPr></p:nvSpPr>' +
+      '<p:spPr>' + (box ? pptxXfrm(box) + '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>' : "") + '</p:spPr>' +
+      '<p:txBody><a:bodyPr><a:normAutofit/></a:bodyPr><a:lstStyle/>' + body + '</p:txBody></p:sp>';
+  }
+  function pptxMaster(){
+    return PPTX_HEAD + '<p:sldMaster ' + PPTX_NS + '><p:cSld><p:spTree>' + PPTX_GRP +
+      pptxPlaceholder(2, "Title Placeholder 1", '<p:ph type="title"/>', PPTX_TITLE_BOX, '<a:p><a:endParaRPr lang="ja-JP"/></a:p>') +
+      pptxPlaceholder(3, "Text Placeholder 2", '<p:ph type="body" idx="1"/>', PPTX_BODY_BOX, '<a:p><a:endParaRPr lang="ja-JP"/></a:p>') +
+      '</p:spTree></p:cSld><p:clrMap ' + PPTX_CLRMAP + '/>' +
+      '<p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst>' +
+      '<p:txStyles>' +
+        '<p:titleStyle><a:lvl1pPr algn="l"><a:defRPr sz="3600" b="1"/></a:lvl1pPr></p:titleStyle>' +
+        '<p:bodyStyle><a:lvl1pPr marL="285750" indent="-285750"><a:buChar char="•"/><a:defRPr sz="2200"/></a:lvl1pPr></p:bodyStyle>' +
+        '<p:otherStyle><a:lvl1pPr><a:defRPr sz="1800"/></a:lvl1pPr></p:otherStyle>' +
+      '</p:txStyles></p:sldMaster>';
+  }
+  function pptxLayout(){
+    return PPTX_HEAD + '<p:sldLayout ' + PPTX_NS + ' type="obj" preserve="1">' +
+      '<p:cSld name="タイトルとコンテンツ"><p:spTree>' + PPTX_GRP +
+      pptxPlaceholder(2, "Title 1", '<p:ph type="title"/>', PPTX_TITLE_BOX, '<a:p><a:endParaRPr lang="ja-JP"/></a:p>') +
+      pptxPlaceholder(3, "Content Placeholder 2", '<p:ph type="body" idx="1"/>', PPTX_BODY_BOX, '<a:p><a:endParaRPr lang="ja-JP"/></a:p>') +
+      '</p:spTree></p:cSld>' +
+      '<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>';
+  }
+  function pptxNotesMaster(){
+    return PPTX_HEAD + '<p:notesMaster ' + PPTX_NS + '><p:cSld><p:spTree>' + PPTX_GRP +
+      pptxPlaceholder(2, "Notes Placeholder 1", '<p:ph type="body" idx="1"/>',
+        {x:685800, y:4400550, cx:5486400, cy:3600450}, '<a:p><a:endParaRPr lang="ja-JP"/></a:p>') +
+      '</p:spTree></p:cSld><p:clrMap ' + PPTX_CLRMAP + '/>' +
+      '<p:notesStyle><a:lvl1pPr><a:defRPr sz="1200"/></a:lvl1pPr></p:notesStyle></p:notesMaster>';
+  }
+  // 実PowerPointが出力するファイルと同じく、スライド側の図形にも座標を持たせる。
+  // レイアウト・マスターからの継承だけに頼ると、継承を解決しない実装で開けない。
+  function pptxSlideXml(sl){
+    return PPTX_HEAD + '<p:sld ' + PPTX_NS + '><p:cSld><p:spTree>' + PPTX_GRP +
+      pptxPlaceholder(2, "Title 1", '<p:ph type="title"/>', PPTX_TITLE_BOX,
+        pptxParas([sl.title], {sz:3200, b:true})) +
+      pptxPlaceholder(3, "Content Placeholder 2", '<p:ph type="body" idx="1"/>', PPTX_BODY_BOX,
+        pptxParas(sl.points, {sz:2000, bullet:true})) +
+      '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
+  }
+  function pptxNotesXml(sl){
+    return PPTX_HEAD + '<p:notes ' + PPTX_NS + '><p:cSld><p:spTree>' + PPTX_GRP +
+      pptxPlaceholder(2, "Notes Placeholder 1", '<p:ph type="body" idx="1"/>',
+        {x:685800, y:4400550, cx:5486400, cy:3600450},
+        pptxParas(String(sl.notes||"").split("\n"), {sz:1200})) +
+      '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:notes>';
+  }
+  // slides: [{title, points:[], notes}]
+  function buildPptx(slides){
+    if(!slides.length) slides = [{title:"（内容なし）", points:[], notes:""}];
+    var files = [];
+    var types = ['<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>',
+      '<Default Extension="xml" ContentType="application/xml"/>',
+      '<Override PartName="/ppt/presentation.xml" ContentType="'+PPTX_CT+'presentation.main+xml"/>',
+      '<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="'+PPTX_CT+'slideMaster+xml"/>',
+      '<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="'+PPTX_CT+'slideLayout+xml"/>',
+      '<Override PartName="/ppt/notesMasters/notesMaster1.xml" ContentType="'+PPTX_CT+'notesMaster+xml"/>',
+      '<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>',
+      '<Override PartName="/ppt/theme/theme2.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>'];
+    var presRels = [{id:"rId1", type:"slideMaster", target:"slideMasters/slideMaster1.xml"}];
+    var sldIds = [];
+    slides.forEach(function(sl, i){
+      var n = i + 1, rid = "rId" + (i + 2);
+      types.push('<Override PartName="/ppt/slides/slide'+n+'.xml" ContentType="'+PPTX_CT+'slide+xml"/>');
+      types.push('<Override PartName="/ppt/notesSlides/notesSlide'+n+'.xml" ContentType="'+PPTX_CT+'notesSlide+xml"/>');
+      presRels.push({id:rid, type:"slide", target:"slides/slide"+n+".xml"});
+      sldIds.push('<p:sldId id="'+(256+i)+'" r:id="'+rid+'"/>');
+    });
+    var nmRid = "rId" + (slides.length + 2);
+    presRels.push({id:nmRid, type:"notesMaster", target:"notesMasters/notesMaster1.xml"});
+    // presProps / viewProps / tableStyles が無いと実PowerPointは開かない
+    presRels.push({id:"rId" + (slides.length + 3), type:"presProps", target:"presProps.xml"});
+    presRels.push({id:"rId" + (slides.length + 4), type:"viewProps", target:"viewProps.xml"});
+    presRels.push({id:"rId" + (slides.length + 5), type:"theme", target:"theme/theme1.xml"});
+    presRels.push({id:"rId" + (slides.length + 6), type:"tableStyles", target:"tableStyles.xml"});
+    types.push('<Override PartName="/ppt/presProps.xml" ContentType="'+PPTX_CT+'presProps+xml"/>');
+    types.push('<Override PartName="/ppt/viewProps.xml" ContentType="'+PPTX_CT+'viewProps+xml"/>');
+    types.push('<Override PartName="/ppt/tableStyles.xml" ContentType="'+PPTX_CT+'tableStyles+xml"/>');
+    types.push('<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>');
+    types.push('<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>');
+
+    files.push({name:"[Content_Types].xml", text: PPTX_HEAD +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' + types.join("") + '</Types>'});
+    files.push({name:"_rels/.rels", text: pptxRels([
+      {id:"rId1", type:"officeDocument", target:"ppt/presentation.xml"},
+      {id:"rId2", target:"docProps/core.xml",
+       full:"http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties"},
+      {id:"rId3", type:"extended-properties", target:"docProps/app.xml"}])});
+    files.push({name:"ppt/presentation.xml", text: PPTX_HEAD + '<p:presentation ' + PPTX_NS + '>' +
+      '<p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>' +
+      '<p:notesMasterIdLst><p:notesMasterId r:id="'+nmRid+'"/></p:notesMasterIdLst>' +
+      '<p:sldIdLst>' + sldIds.join("") + '</p:sldIdLst>' +
+      '<p:sldSz cx="'+PPTX_W+'" cy="'+PPTX_H+'"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>'});
+    files.push({name:"ppt/_rels/presentation.xml.rels", text: pptxRels(presRels)});
+    files.push({name:"ppt/slideMasters/slideMaster1.xml", text: pptxMaster()});
+    files.push({name:"ppt/slideMasters/_rels/slideMaster1.xml.rels", text: pptxRels([
+      {id:"rId1", type:"slideLayout", target:"../slideLayouts/slideLayout1.xml"},
+      {id:"rId2", type:"theme", target:"../theme/theme1.xml"}])});
+    files.push({name:"ppt/slideLayouts/slideLayout1.xml", text: pptxLayout()});
+    files.push({name:"ppt/slideLayouts/_rels/slideLayout1.xml.rels", text: pptxRels([
+      {id:"rId1", type:"slideMaster", target:"../slideMasters/slideMaster1.xml"}])});
+    files.push({name:"ppt/notesMasters/notesMaster1.xml", text: pptxNotesMaster()});
+    // テーマパートはマスターごとに1つ必要。slideMaster と共有すると実PowerPointが開かない
+    files.push({name:"ppt/notesMasters/_rels/notesMaster1.xml.rels", text: pptxRels([
+      {id:"rId1", type:"theme", target:"../theme/theme2.xml"}])});
+    files.push({name:"ppt/theme/theme1.xml", text: pptxTheme("Kanpe")});
+    files.push({name:"ppt/theme/theme2.xml", text: pptxTheme("Kanpe Notes")});
+    files.push({name:"ppt/presProps.xml", text: PPTX_HEAD + '<p:presentationPr ' + PPTX_NS + '/>'});
+    files.push({name:"ppt/viewProps.xml", text: PPTX_HEAD + '<p:viewPr ' + PPTX_NS + '/>'});
+    files.push({name:"ppt/tableStyles.xml", text: PPTX_HEAD +
+      '<a:tblStyleLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ' +
+      'def="{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}"/>'});
+    var stamp = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+    files.push({name:"docProps/core.xml", text: PPTX_HEAD +
+      '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" ' +
+      'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" ' +
+      'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' +
+      '<dc:title>' + pptxEsc(handoutTitle()) + '</dc:title>' +
+      '<dc:creator>Kanpe</dc:creator><cp:lastModifiedBy>Kanpe</cp:lastModifiedBy>' +
+      '<dcterms:created xsi:type="dcterms:W3CDTF">' + stamp + '</dcterms:created>' +
+      '<dcterms:modified xsi:type="dcterms:W3CDTF">' + stamp + '</dcterms:modified>' +
+      '</cp:coreProperties>'});
+    // 要素の順序はCT_ExtendedPropertiesのスキーマ順に合わせる
+    files.push({name:"docProps/app.xml", text: PPTX_HEAD +
+      '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" ' +
+      'xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">' +
+      '<PresentationFormat>Widescreen</PresentationFormat>' +
+      '<Slides>' + slides.length + '</Slides>' +
+      '<Application>Kanpe</Application>' +
+      '</Properties>'});
+    slides.forEach(function(sl, i){
+      var n = i + 1;
+      files.push({name:"ppt/slides/slide"+n+".xml", text: pptxSlideXml(sl)});
+      files.push({name:"ppt/slides/_rels/slide"+n+".xml.rels", text: pptxRels([
+        {id:"rId1", type:"slideLayout", target:"../slideLayouts/slideLayout1.xml"},
+        {id:"rId2", type:"notesSlide", target:"../notesSlides/notesSlide"+n+".xml"}])});
+      files.push({name:"ppt/notesSlides/notesSlide"+n+".xml", text: pptxNotesXml(sl)});
+      files.push({name:"ppt/notesSlides/_rels/notesSlide"+n+".xml.rels", text: pptxRels([
+        {id:"rId1", type:"notesMaster", target:"../notesMasters/notesMaster1.xml"},
+        {id:"rId2", type:"slide", target:"../slides/slide"+n+".xml"}])});
+    });
+    return pptxZip(files);
+  }
+  // 見出し→スライドタイトル、要点→本文、読み上げ本文→発表者ノート
+  function pptxSlidesFromScript(){
+    return handoutSections().map(function(parts){
+      return {title: parts.heading, points: parts.points, notes: parts.speech};
+    });
+  }
+
+  function openOutput(s){
+    outTarget = s;
+    $("outName").textContent = label(s) + "（" + s.cues.length + "項目）";
+    var empty = !s.cues.length;
+    ["outPptxBtn","outHandoutMdBtn","outHandoutPdfBtn"].forEach(function(id){
+      $(id).disabled = empty;
+    });
+    $("outDialog").showModal ? $("outDialog").showModal() : null;
+  }
+  $("outClose").addEventListener("click", function(){ $("outDialog").close(); });
+  $("outJsonBtn").addEventListener("click", function(){
+    if(outTarget) exportScript(outTarget);
+  });
+  $("outHandoutMdBtn").addEventListener("click", function(){
+    if(!outTarget) return;
+    downloadText(safeFileName(handoutTitle()) + "_配布資料.md", buildHandoutMarkdown());
+  });
+  $("outHandoutPdfBtn").addEventListener("click", function(){
+    if(!outTarget) return;
+    buildHandoutInto($("handoutPrint"));
+    $("outDialog").close();
+    // 描画を1フレーム待ってから印刷ダイアログを開く
+    setTimeout(function(){ window.print(); }, 60);
+  });
+  $("outPptxBtn").addEventListener("click", function(){
+    if(!outTarget) return;
+    try{
+      downloadBytes(safeFileName(handoutTitle()) + ".pptx", buildPptx(pptxSlidesFromScript()), PPTX_MIME);
+    }catch(e){
+      showNotice("PowerPointファイルを作れませんでした。JSONで書き出して保存したうえで、時間をおいて試してください。", true);
+      $("outDialog").close();
+    }
+  });
 
   /* ---------- 名前の入力 ---------- */
   var renameTarget = null, renameDone = null;
@@ -552,47 +1160,269 @@
     if(ev.key === "Enter"){ ev.preventDefault(); $("renameOk").click(); }
   });
 
-  /* ---------- 読み込み ---------- */
-  // 一枚版の書き出し形式 {title, cues} と、cues配列だけのJSONを受ける
-  function fromJSON(raw){
-    var data;
-    try{ data = JSON.parse(raw); }catch(e){ return null; }
-    var cues = Array.isArray(data) ? data : (data && data.cues);
-    if(!Array.isArray(cues)) return null;
-    var clean = [];
-    cues.forEach(function(c){
-      if(!c || typeof c !== "object") return;
-      var at = typeof c.at === "number" ? Math.max(0, Math.round(c.at)) : null;
-      if(at == null) return;
-      clean.push({at:at, text:String(c.text == null ? "" : c.text)});
-    });
-    if(!clean.length) return null;
-    clean.sort(function(a,b){ return a.at - b.at; });
-    return {title: (!Array.isArray(data) && data.title) ? String(data.title) : "", cues: clean};
+  /* ---------- 取り込み（崩れていても読めた分だけ拾う） ---------- */
+  var AT_KEYS   = ["at","time","start","sec","seconds","offset","時間","開始","経過"];
+  var TEXT_KEYS = ["text","content","body","script","note","memo","title","内容","台本","本文","メモ"];
+
+  function fromObject(o){
+    if(!o || typeof o !== "object") return null;
+    var at = null, text = "";
+    for(var i=0;i<AT_KEYS.length;i++){
+      if(o[AT_KEYS[i]] !== undefined){ at = toSec(o[AT_KEYS[i]]); if(at!=null) break; }
+    }
+    for(var j=0;j<TEXT_KEYS.length;j++){
+      if(o[TEXT_KEYS[j]] !== undefined && String(o[TEXT_KEYS[j]]).trim()){
+        text = String(o[TEXT_KEYS[j]]); break;
+      }
+    }
+    if(at==null) return null;
+    return {at:at, text:normalize(text).trim()};
   }
-  $("importBtn").addEventListener("click", function(){ $("file").click(); });
+
+  function tryJSON(raw){
+    var txt = raw.replace(/^\s*```[a-zA-Z]*\s*/,"").replace(/```\s*$/,"").trim();
+    var cands = [txt], a = txt.indexOf("["), b = txt.lastIndexOf("]");
+    if(a>=0 && b>a) cands.push(txt.slice(a,b+1));
+    a = txt.indexOf("{"); b = txt.lastIndexOf("}");
+    if(a>=0 && b>a) cands.push(txt.slice(a,b+1));
+    for(var i=0;i<cands.length;i++){
+      var d;
+      try{ d = JSON.parse(cands[i]); }catch(e){ continue; }
+      var arr = Array.isArray(d) ? d : (d.cues || d.items || d.rows || d.script);
+      if(!Array.isArray(arr)) continue;
+      var out = [], skipped = 0;
+      arr.forEach(function(o){ var c = fromObject(o); c ? out.push(c) : skipped++; });
+      if(out.length) return {cues:out, skipped:skipped, title:(!Array.isArray(d) && d.title) ? String(d.title) : ""};
+    }
+    return null;
+  }
+
+  // 行頭の時間表記。直後が区切りか行末のときだけ時間とみなす
+  var LINE_RE = /^\s*[-*・>＞\[(【]?\s*(\d{1,3}(?::\d{1,2}){1,2}|\d{1,3}\s*分(?:\s*\d{1,2}\s*秒)?)(?:\s*[\])】｜|,、\-–—\/／]+\s*|\s*:(?!\d)\s*|\s+|$)([\s\S]*)$/;
+
+  function tryLines(raw){
+    var lines = normalize(raw).split("\n");
+    var out = [], skipped = 0, merged = 0, cur = null;
+    lines.forEach(function(line){
+      var m = line.match(LINE_RE), at = m ? toSec(m[1]) : null;
+      if(at != null){
+        cur = {at:at, text:(m[2]||"").trim()};
+        out.push(cur);
+      }else if(cur){
+        if(line.trim()==="" ){ cur.text += "\n"; }
+        else { cur.text += (cur.text ? "\n" : "") + line.trim(); merged++; }
+      }else if(line.trim()!==""){
+        skipped++;
+      }
+    });
+    out.forEach(function(c){ c.text = c.text.replace(/\n{3,}/g,"\n\n").trim(); });
+    return out.length ? {cues:out, skipped:skipped, merged:merged} : null;
+  }
+
+  /* ---------- 取り込み画面 ---------- */
+  var impFileName = "";
+  function impMsg(text, cls){
+    var el = $("impMsg");
+    el.className = "msg" + (cls ? " " + cls : "");
+    el.textContent = text || "";
+  }
+  function fillImportTargets(){
+    var sel = $("impTarget"), keep = sel.value;
+    sel.innerHTML = "";
+    var opt = document.createElement("option");
+    opt.value = "new"; opt.textContent = "新しい台本として";
+    sel.appendChild(opt);
+    lib.scripts.slice().sort(function(x,y){
+      return String(y.updatedAt).localeCompare(String(x.updatedAt));
+    }).forEach(function(sc){
+      var o = document.createElement("option");
+      o.value = sc.id; o.textContent = label(sc);
+      sel.appendChild(o);
+    });
+    sel.value = keep && sel.querySelector('option[value="' + keep + '"]') ? keep : "new";
+    syncImportMode();
+  }
+  function syncImportMode(){ $("impMode").hidden = $("impTarget").value === "new"; }
+  function openImport(){
+    fillImportTargets();
+    impMsg("");
+    if($("impDialog").showModal) $("impDialog").showModal();
+  }
+  function runImport(){
+    var raw = $("impText").value;
+    if(!raw || !raw.trim()){ impMsg("取り込む内容がありません。", "ng"); return; }
+    var r = tryJSON(raw) || tryLines(raw);
+    if(!r){
+      impMsg("時間の書かれた行が見つかりませんでした。各項目の行頭を 3:30 のような形にして、もう一度お試しください。", "ng");
+      return;
+    }
+    r.cues.sort(function(a,b){ return a.at - b.at; });
+
+    var note = [];
+    if(r.merged) note.push(r.merged + "行は直前の項目に続けました");
+    if(r.skipped) note.push(r.skipped + "行は時間が読めず飛ばしました");
+
+    var targetId = $("impTarget").value;
+    var done;
+    if(targetId === "new"){
+      // 名前が無ければ最初の項目の見出しを借りる。無題が並ぶより探しやすい
+      var name = r.title || impFileName.replace(/\.(json|txt|md)$/i, "") ||
+        (r.cues.length ? cueTitle(r.cues[0].text, false) : "");
+      done = newScript(name, r.cues);
+      lib.scripts.push(done);
+      note.unshift("「" + label(done) + "」として" + r.cues.length + "項目を取り込みました");
+    }else{
+      done = findScript(targetId);
+      if(!done){ impMsg("取り込み先の台本が見つかりませんでした。", "ng"); return; }
+      var replace = $("impMode").value === "replace";
+      if(replace && done.cues.length &&
+         !confirm("「" + label(done) + "」の中身をすべて置き換えます。よろしいですか？")) return;
+      done.cues = replace ? r.cues : done.cues.concat(r.cues);
+      done.cues.sort(function(a,b){ return a.at - b.at; });
+      if(replace && r.title) done.title = r.title;
+      done.updatedAt = nowISO();
+      note.unshift("「" + label(done) + "」へ" + r.cues.length + "項目を" +
+        (replace ? "置き換えで" : "追加で") + "取り込みました");
+    }
+    save();
+    // カンペに読み込み中の台本を書き換えたら、一枚版が読む側も揃える
+    if(lib.openId === done.id) pushLive(done);
+    $("impText").value = ""; impFileName = "";
+    $("impDialog").close();
+    render();
+    showNotice(note.join("／") + "。内容を確認して、必要なら直してください。");
+  }
+
+  $("impRun").addEventListener("click", runImport);
+  $("impClose").addEventListener("click", function(){ $("impDialog").close(); });
+  $("impTarget").addEventListener("change", syncImportMode);
+  $("impFileBtn").addEventListener("click", function(){ $("file").click(); });
+  $("importBtn").addEventListener("click", openImport);
+  $("navImportBtn").addEventListener("click", openImport);
   $("file").addEventListener("change", function(){
     var f = this.files[0];
     this.value = "";
     if(!f) return;
     var r = new FileReader();
     r.onload = function(){
-      var parsed = fromJSON(String(r.result));
-      if(!parsed){
-        showNotice("「" + f.name + "」から台本を読み取れませんでした。at と text を持つ項目の配列が必要です。", true);
-        return;
-      }
-      var s = newScript(parsed.title || f.name.replace(/\.json$/i, ""), parsed.cues);
-      lib.scripts.push(s); save(); render();
-      showNotice("「" + label(s) + "」として読み込みました（" + s.cues.length + "項目）。");
+      impFileName = f.name;
+      $("impText").value = String(r.result);
+      if(!$("impDialog").open) openImport();
+      impMsg("「" + f.name + "」を読み込みました。取り込み先を選んで「取り込む」を押してください。");
     };
     r.readAsText(f);
+  });
+
+  /* ---------- AI用テンプレート ---------- */
+  var PROMPT_CONVERT = [
+    "# 既存台本を『カンペ』用JSONに変換するプロンプト",
+    "",
+    "あなたは、配布済みの進行台本を、時間で自動切替するカンペ用JSONへ整える編集者です。以下に貼る台本を、事実や固有名詞を変えずに読みやすく再構成してください。",
+    "",
+    "## 出力形式",
+    "JSONだけを出力してください。説明、前置き、Markdownのコードフェンスは不要です。",
+    '{"title":"台本タイトル","cues":[{"at":0,"text":"01 開会挨拶\\n読み上げる本文"}]}',
+    "",
+    "## 必須ルール",
+    "- atは開始からの秒数を表す0以上の整数にし、昇順に並べる",
+    "- 最初の項目は原則at: 0にする",
+    "- 元台本に時刻や所要時間があれば最優先し、勝手に変更しない",
+    "- 時刻がなければ、日本語の読み上げを1分あたり約280〜320文字として自然な区切りで見積もる",
+    "- 1項目が長すぎる場合は、文や話題の切れ目で分割する。文の途中では切らない",
+    "- 最後には必ず、自動停止用の『終了』項目を1件追加する",
+    "- このアプリはcuesの最後のatをタイムラインの終点として扱い、その時刻でタイマーを自動停止する",
+    "- 終了項目のatは、元台本に終了時刻や全体時間があればその時刻にする。なければ全文の読み上げ時間を見積もった終了時刻にする",
+    "- 終了項目より前に、最後の読み上げ本文を読み終えるための時間を確保する。終了項目には読み上げ本文を入れない",
+    "- 終了項目のtextも連番から始め、『04 終了』のように実際の最終番号と『終了』を書く",
+    "- textの先頭は必ず番号から始める。番号の前に記号、絵文字、空白を置かない",
+    "- 形式は『01 半角空白 短い要約』とし、番号を含む先頭8文字以内で内容が分かるようにする",
+    "- 例: 『01 開会挨拶』『02 講師紹介』『03 質疑応答』",
+    "- 見出しの直後で改行し、その下に実際に読む本文を書く",
+    "- 本文の中で要点を並べるときは、行頭を「・」にした箇条書きにする。配布資料と将来のスライド出力は、この行を要点として拾う",
+    "- 項目数が100以上なら番号を001、002のような3桁に統一する",
+    "- 氏名、会社名、数値、URL、注意事項は原文どおり保持する",
+    "- 読み上げない指示は【間を取る】【画面切替】のように区別する",
+    "- 情報を創作しない。不明点は本文中へ『【要確認】』と明記する",
+    "- JSONとして解析できるよう、改行や引用符を正しくエスケープする",
+    "",
+    "## 変換する元台本",
+    "以下に台本を貼り付けます。",
+    "",
+    "----- ここから -----",
+    "（ここに既存の台本を貼り付ける）",
+    "----- ここまで -----"
+  ].join("\n");
+
+  var PROMPT_CREATE = [
+    "# 『カンペ』用の新規台本を作成するプロンプト",
+    "",
+    "あなたは、司会・講演・動画収録で読みやすい進行台本を作る構成作家です。下記の条件から、時間で自動切替できるカンペ用JSONを作成してください。",
+    "",
+    "## 出力形式",
+    "JSONだけを出力してください。説明、前置き、Markdownのコードフェンスは不要です。",
+    '{"title":"台本タイトル","cues":[{"at":0,"text":"01 開会挨拶\\n読み上げる本文"}]}',
+    "",
+    "## 構成ルール",
+    "- atは開始からの秒数を表す0以上の整数にし、昇順に並べる",
+    "- 最初の項目はat: 0にする",
+    "- 指定された全体時間へ収まるよう、日本語の読み上げを1分あたり約280〜320文字で設計する",
+    "- 30〜90秒を目安に、話題や操作が変わる位置で項目を分ける",
+    "- 最後には必ず、自動停止用の『終了』項目を1件追加する",
+    "- このアプリはcuesの最後のatをタイムラインの終点として扱い、その時刻でタイマーを自動停止する",
+    "- 終了項目のatは指定された全体時間と一致させる。全体時間が未指定なら、全文の読み上げ時間を見積もって決める",
+    "- 最後の読み上げ本文は終了時刻より前に読み終わる配分にし、終了項目には読み上げ本文を入れない",
+    "- 終了項目のtextも連番から始め、『04 終了』のように実際の最終番号と『終了』を書く",
+    "- textの先頭は必ず番号から始め、番号の前に記号、絵文字、空白を置かない",
+    "- 形式は『01 半角空白 短い要約』とし、番号を含む先頭8文字以内で内容が分かるようにする",
+    "- 例: 『01 導入』『02 商品紹介』『03 まとめ』",
+    "- 見出しの直後で改行し、その下に読み上げ本文を書く",
+    "- 本文の中で要点を並べるときは、行頭を「・」にした箇条書きにする。配布資料と将来のスライド出力は、この行を要点として拾う",
+    "- 項目数が100以上なら番号を001、002のような3桁に統一する",
+    "- 重要な固有名詞や数字は省略せず、読み間違えにくい文章にする",
+    "- 読み上げない動作指示は【間を取る】【スライド変更】のように書く",
+    "- 必要な情報が不足している場合は創作せず『【要確認: 内容】』と入れる",
+    "- JSONとして解析できるよう、改行や引用符を正しくエスケープする",
+    "",
+    "## 作成条件",
+    "タイトル: （入力）",
+    "用途・場面: （例: セミナー司会、商品紹介動画）",
+    "想定する聞き手: （入力）",
+    "全体時間: （例: 10分）",
+    "話し手・登場人物: （入力）",
+    "必ず含める内容: （入力）",
+    "避ける表現・注意事項: （入力）",
+    "希望する雰囲気: （例: 落ち着いた、親しみやすい）",
+    "参考資料: （必要に応じて貼り付ける）"
+  ].join("\n");
+  var promptFileName = "";
+  function showPrompt(titleText, fileName, content){
+    promptFileName = fileName;
+    $("promptDialogTitle").textContent = titleText;
+    $("promptPreview").value = content;
+    if($("impDialog").open) $("impDialog").close();
+    if($("promptDialog").showModal) $("promptDialog").showModal();
+  }
+  $("promptConvertBtn").addEventListener("click", function(){
+    showPrompt("既存台本をJSON化するプロンプト", "01_既存台本をJSON化するプロンプト.txt", PROMPT_CONVERT);
+  });
+  $("promptCreateBtn").addEventListener("click", function(){
+    showPrompt("台本作成プロンプト", "02_台本作成プロンプト.txt", PROMPT_CREATE);
+  });
+  $("promptAllBtn").addEventListener("click", function(){
+    downloadText("カンペ_AIプロンプト一括.txt",
+      PROMPT_CONVERT + "\n\n\n============================================================\n\n\n" + PROMPT_CREATE);
+  });
+  $("promptDownloadBtn").addEventListener("click", function(){
+    downloadText(promptFileName || "カンペ_AIテンプレート.txt", $("promptPreview").value);
+  });
+  $("promptBack").addEventListener("click", function(){
+    $("promptDialog").close();
+    openImport();
   });
 
   /* ---------- 起動 ---------- */
   $("newBtn").addEventListener("click", createScript);
   $("navNewBtn").addEventListener("click", createScript);
-  $("navImportBtn").addEventListener("click", function(){ $("file").click(); });
   $("themeBtn").addEventListener("click", function(){
     lib.settings.theme = lib.settings.theme === "dark" ? "light" : "dark";
     save(); applyTheme();
