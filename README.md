@@ -309,6 +309,18 @@ Microsoft PowerPoint、LibreOffice Impress で開けることを確認してい�
 
 台本には作成順に並ぶID（UUIDv7）と作成日時・更新日時を持たせています。将来ツール間でデータをやり取りする際の共通形式に合わせたものです。
 
+### ランディングページから開いたとき
+
+共通シェル（`kazukibass.github.io/assets/shell.js`）は、URLに `?from=portfolio` が付いているときだけ有効になります。有効なあいだは左上にKロゴが出て、そこからランディングページへ戻れます。
+
+カンペとホームを行き来してもこの状態を保つため、**ページ間の遷移でURLの検索文字列をそのまま引き継ぎます。**
+
+```text
+index.html?from=portfolio  →  home.html?from=portfolio  →  index.html?from=portfolio
+```
+
+`from` だけを見るのではなく検索文字列ごと運ぶので、シェル側の判定条件が増えても追従します。パラメータなしで開いた場合は付けません。直接アクセスやブックマークではツール本来のUIのままです。
+
 ### 保存の形
 
 ```text
