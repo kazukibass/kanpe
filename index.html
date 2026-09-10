@@ -1453,11 +1453,20 @@
   // 編集へ入るときだけ履歴を1つ積む。戻る操作は hashchange 経由で setMode へ届く。
   var EDIT_HASH = "#edit";
   var editPushed = false;
+  var booting = true;   // 起動時の初期表示。まだ履歴を積んでいない
+  function baseUrl(){ return location.pathname + location.search; }
   function syncHash(editing){
     if(editing === (location.hash === EDIT_HASH)) return;
+    // 起動時は履歴を積まずURLだけ合わせる。積んだつもりで back() すると、
+    // 台本が空で編集から始まった場合に、初回の「表示」でページの外（LP）へ出てしまう。
+    if(booting){
+      if(history.replaceState) history.replaceState(null, "", baseUrl() + (editing ? EDIT_HASH : ""));
+      else if(editing) location.hash = EDIT_HASH.slice(1);
+      return;
+    }
     if(editing){ editPushed = true; location.hash = EDIT_HASH.slice(1); }
     else if(editPushed){ editPushed = false; history.back(); }
-    else if(history.replaceState) history.replaceState(null, "", location.pathname + location.search);
+    else if(history.replaceState) history.replaceState(null, "", baseUrl());
     else location.hash = "";
   }
   window.addEventListener("hashchange", function(){
@@ -1634,9 +1643,14 @@
     if(ev.target.closest && ev.target.closest("#editBtn, .inline-save")) return;
     finishInlineEdit(true);
   });
+  // LPからの入口情報（?from=portfolio など）をページ間で持ち回る。
+  // 共通シェルはこのクエリが付いているときだけ有効になるため、
+  // 落とすとホームへ移った時点で左上のロゴとLPへの戻り口が消える。
+  // シェルの判定条件が増えても追従できるよう、from だけでなく検索文字列ごと運ぶ。
+  function keepEntry(path){ return location.search ? path + location.search : path; }
   // ホーム版のURL。空文字にするとホームボタンを出さない
   var HOME_URL = "home.html";
-  if(HOME_URL) $("homeBtn").setAttribute("href", HOME_URL);
+  if(HOME_URL) $("homeBtn").setAttribute("href", keepEntry(HOME_URL));
   else $("homeBtn").hidden = true;
   $("ondeck").addEventListener("touchend", function(ev){
     if(!ev.target.closest || !ev.target.closest(".odmain")) return;
@@ -1684,6 +1698,7 @@
   });
 
   setMode(location.hash === EDIT_HASH || cues.length===0);
+  booting = false;
   renderEstimate();
   saveState(canStore ? "✓ 台本を端末保存" : "一時保存のみ", canStore);
   render();

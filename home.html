@@ -465,6 +465,11 @@
     var p = function(n){ return (n<10?"0":"")+n; };
     return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
   }
+  // LPからの入口情報（?from=portfolio など）をページ間で持ち回る。
+  // 共通シェルはこのクエリが付いているときだけ有効になるため、
+  // 落とすとカンペへ移った時点で左上のロゴとLPへの戻り口が消える。
+  // シェルの判定条件が増えても追従できるよう、from だけでなく検索文字列ごと運ぶ。
+  function keepEntry(path){ return location.search ? path + location.search : path; }
   function safeFileName(s){
     var t = String(s||"").trim().replace(/[\\/:*?"<>|\x00-\x1F]/g, " ").replace(/\s+/g," ").trim();
     return t ? t.slice(0,80) : "kanpe";
@@ -678,7 +683,7 @@
     pushLive(s);
     lib.openId = s.id;
     save();
-    location.href = "index.html";
+    location.href = keepEntry("index.html");
   }
   function createScript(){
     var s = newScript("", []);
@@ -1423,6 +1428,7 @@
   /* ---------- 起動 ---------- */
   $("newBtn").addEventListener("click", createScript);
   $("navNewBtn").addEventListener("click", createScript);
+  $("toKanpeBtn").setAttribute("href", keepEntry("index.html"));
   $("themeBtn").addEventListener("click", function(){
     lib.settings.theme = lib.settings.theme === "dark" ? "light" : "dark";
     save(); applyTheme();
