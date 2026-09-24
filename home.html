@@ -21,6 +21,9 @@
     --progress:rgba(62,207,142,.30);
     --go:#3ECF8E;
     --standby:#E2483D;
+    --nav-state-duration:120ms;
+    --nav-motion-duration:220ms;
+    --nav-hit-target:44px;
     --gothic: "Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
     --mono: ui-monospace,"SF Mono","Roboto Mono","DejaVu Sans Mono",monospace;
   }
@@ -206,7 +209,7 @@
 <body>
 
 <header>
-  <div class="bar">
+  <div class="bar" data-nav-placement="top" data-nav-layout="push" data-nav-collapse="fixed" data-nav-state="expanded" data-nav-surface="solid">
     <span class="brand">Kanpe</span>
     <span class="kicker">台本ライブラリ</span>
     <button class="btn primary desk" id="newBtn" type="button">新規作成</button>
@@ -225,7 +228,7 @@
   <p class="note" id="footNote"></p>
 </main>
 
-<nav class="navbar" id="navbar" aria-label="移動">
+<nav class="navbar" id="navbar" aria-label="移動" data-nav-placement="bottom" data-nav-layout="overlay" data-nav-collapse="fixed" data-nav-state="expanded" data-nav-surface="solid">
   <a class="btn nav" id="toKanpeBtn" href="index.html" title="カンペを開く">
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
     <span>カンペ</span>
