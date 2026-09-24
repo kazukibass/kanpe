@@ -31,6 +31,9 @@
     --go-strong:#24B879;
     --standby:#E2483D;
     --scale:1;
+    --nav-state-duration:120ms;
+    --nav-motion-duration:220ms;
+    --nav-hit-target:44px;
     --gothic: "Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
     --mincho: "Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","Shippori Mincho",serif;
     --editor-font: "Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
@@ -495,7 +498,7 @@
 <body>
 
 <header>
-  <div class="bar">
+  <div class="bar" data-nav-placement="top" data-nav-layout="push" data-nav-collapse="fixed" data-nav-state="expanded" data-nav-surface="solid">
     <button class="brand nonlive" id="brandBtn" type="button" title="表示モードへ戻る" aria-label="表示モードへ戻る"><span class="brand-full">Kanpe</span><span class="brand-short">K</span></button>
     <div class="player-center">
       <div class="clock-group">
