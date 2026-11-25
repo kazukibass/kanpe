@@ -459,6 +459,8 @@
     .help-mobile p{margin:9px 0}
   }
   @media (min-width:521px){
+    /* 44pxのタイムライン操作領域（両端22px）を画面内に収め、ラベルと目盛りを揃える。 */
+    .ribbon,.cue-labels{margin-inline:22px}
     .cue-label.now{width:88px !important; max-width:88px;
       background:linear-gradient(90deg,var(--panel) 78%,transparent)}
     .cue-label.end.now{width:116px !important; max-width:116px;
