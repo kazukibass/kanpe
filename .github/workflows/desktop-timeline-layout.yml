@@ -1,0 +1,25 @@
+name: Desktop timeline layout
+
+on:
+  pull_request:
+    paths:
+      - index.html
+      - tests/desktop-timeline-layout.test.mjs
+      - .github/workflows/desktop-timeline-layout.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-save --no-package-lock --no-audit --no-fund playwright@1.57.0
+      - run: npx playwright install --with-deps chromium
+      - run: node --test tests/desktop-timeline-layout.test.mjs
